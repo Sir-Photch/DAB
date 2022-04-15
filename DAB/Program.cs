@@ -1,6 +1,5 @@
-﻿using DAB.Discord.Audio;
-using Discord.Commands;
-using Discord.WebSocket;
+﻿using DAB.Discord;
+using DAB.Discord.Audio;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 
@@ -8,23 +7,6 @@ void Cleanup(Stopwatch sw)
 {
     Log.Write(INF, "Bot shutdown: {Uptime}", sw.Elapsed);
     Log.Flush();
-}
-
-async Task OnMessageReceivedAsync(SocketMessage arg, DiscordSocketClient client, CommandService service, IServiceProvider provider)
-{
-    if (arg is not SocketUserMessage msg)
-        return;
-
-    int argPos = 0;
-
-    if (!(msg.HasCharPrefix('!', ref argPos) ||
-          msg.HasMentionPrefix(client.CurrentUser, ref argPos)) ||
-        msg.Author.IsBot)
-        return;
-
-    SocketCommandContext context = new(client, msg);
-
-    await service.ExecuteAsync(context, argPos, provider);
 }
 
 Log.Write(INF, "Bot startup: {StartupTime}", DateTime.Now);
@@ -42,23 +24,18 @@ catch (InvalidOperationException ioe)
     return 1;
 }
 
-await using DiscordSocketClient client = new();
-using CommandService service = new();
-IServiceProvider serviceProvider = new ServiceCollection().AddSingleton<AudioService>().BuildServiceProvider();
-client.Log += msg => Task.Run(() =>
-{
-    (Log.Level level, string source, string message, Exception? e) = msg;
-    Log.Write(level, e, "Discord-client: [{source}] | {message}", source, message);
-});
-client.MessageReceived += msg => OnMessageReceivedAsync(msg, client, service, serviceProvider);
+IServiceProvider serviceProvider = new ServiceCollection()
+                                      .AddSingleton<AudioService>()
+                                      .BuildServiceProvider();
 
-await client.LoginAsync(Discord.TokenType.Bot, discordKeys.ApiKey);
-await client.StartAsync();
-await service.AddModuleAsync<AudioModule>(serviceProvider);
+await using DiscordCommandService discordCommandService = new(serviceProvider);
+
+await discordCommandService.InitializeAsync();
+await discordCommandService.StartAsync(discordKeys.ApiKey);
 
 Console.ReadKey();
 
-await client.StopAsync();
+await discordCommandService.StopAsync();
 
 Cleanup(stopwatch);
 return 0;
