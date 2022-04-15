@@ -1,6 +1,10 @@
-﻿using Discord;
+﻿using DAB.Data.Interfaces;
+using DAB.Data.Sinks;
+using DAB.Discord.Audio;
+using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using System.Collections.Concurrent;
 using System.Reflection;
 
 namespace DAB.Discord;
@@ -13,17 +17,25 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
     private readonly DiscordSocketClient _socketClient;
     private readonly CommandService _commandService;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IAnnouncementSink _announcementSink;
+    private readonly AudioService _audioService;
+
+    private readonly SemaphoreSlim _sendAudioSemaphore = new(1);
+    private readonly ConcurrentQueue<Stream> _sendAudioQueue = new();
 
     #endregion
 
     internal DiscordCommandService(
         IServiceProvider serviceProvider,
-        DiscordSocketClient? socketClient = null, 
+        IAnnouncementSink? announcementSink = null,
+        DiscordSocketClient? socketClient = null,
         CommandService? commandService = null)
     {
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider)); ;
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _announcementSink = announcementSink ?? new MemorySink();
         _socketClient = socketClient ?? new();
-        _commandService = commandService ?? new();        
+        _commandService = commandService ?? new();
+        _audioService = new AudioService();
     }
 
     internal string CommandPrefix { get; init; } = "!";
@@ -34,7 +46,7 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
     {
         _socketClient.Log += OnClientLogAsync;
         _socketClient.MessageReceived += OnClientMessageReceivedAsync;
-        _socketClient.UserVoiceStateUpdated += OnClientUserVoiceStateUpdated;
+        _socketClient.UserVoiceStateUpdated += OnClientUserVoiceStateUpdatedAsync;
 
         await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
     }
@@ -54,9 +66,32 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
 
     #region event-subscribers
 
-    private async Task OnClientUserVoiceStateUpdated(SocketUser arg1, SocketVoiceState arg2, SocketVoiceState arg3)
+    private async Task OnClientUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState prevState, SocketVoiceState newState)
     {
-        return;
+        if (user.IsWebhook || user.IsBot || newState.VoiceChannel is null || 
+            newState.IsSuppressed || newState.IsMuted ||
+            !await _announcementSink.UserHasDataAsync(user.Id))
+            return;
+
+        Stream userData = await _announcementSink.LoadAsync(user.Id);
+        _sendAudioQueue.Enqueue(userData);
+
+        if (!await _sendAudioSemaphore.WaitAsync(0))
+            return;
+
+        try
+        {
+            await _audioService.JoinAudioAsync(newState.VoiceChannel.Guild, newState.VoiceChannel);
+
+            while (_sendAudioQueue.TryDequeue(out Stream? result) && result is not null)
+                await _audioService.SendAudioAsync(newState.VoiceChannel.Guild, result);
+
+            await _audioService.LeaveAudio(newState.VoiceChannel.Guild);
+        }
+        finally
+        {
+            _sendAudioSemaphore.Release();
+        }
     }
 
     private async Task OnClientMessageReceivedAsync(SocketMessage arg)
@@ -94,6 +129,7 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
 
         _socketClient.Dispose();
         (_commandService as IDisposable)?.Dispose();
+        (_announcementSink as IDisposable)?.Dispose();
 
         _disposed = true;
         GC.SuppressFinalize(this);
@@ -106,6 +142,7 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
 
         await _socketClient.DisposeAsync();
         (_commandService as IDisposable)?.Dispose();
+        (_announcementSink as IDisposable)?.Dispose();
 
         _disposed = true;
         GC.SuppressFinalize(this);

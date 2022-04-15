@@ -1,4 +1,6 @@
-﻿using DAB.Discord;
+﻿using DAB.Data.Interfaces;
+using DAB.Data.Sinks;
+using DAB.Discord;
 using DAB.Discord.Audio;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
@@ -24,11 +26,13 @@ catch (InvalidOperationException ioe)
     return 1;
 }
 
+IAnnouncementSink announcementSink = new MemorySink();
 IServiceProvider serviceProvider = new ServiceCollection()
                                       .AddSingleton<AudioService>()
+                                      .AddSingleton<IAnnouncementSink>(announcementSink)
                                       .BuildServiceProvider();
 
-await using DiscordCommandService discordCommandService = new(serviceProvider);
+await using DiscordCommandService discordCommandService = new(serviceProvider, announcementSink);
 
 await discordCommandService.InitializeAsync();
 await discordCommandService.StartAsync(discordKeys.ApiKey);

@@ -40,7 +40,7 @@ public class AudioService
         }
     }
 
-    public async Task SendAudioAsync(IGuild guild, IMessageChannel channel, Stream stream)
+    public async Task SendAudioAsync(IGuild guild, Stream stream)
     {
         if (!stream.CanRead)
             throw new ArgumentException("not readable", nameof(stream));

@@ -34,7 +34,7 @@ public class AudioModule : ModuleBase<ICommandContext>
         try
         {
             using Stream pcmStream = PCMAudioPlayer.Create(song);
-            await _serivce.SendAudioAsync(Context.Guild, Context.Channel, pcmStream);
+            await _serivce.SendAudioAsync(Context.Guild, pcmStream);
         }
         catch (Exception e)
         {
