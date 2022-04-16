@@ -83,13 +83,7 @@ internal class DiscordCommandService
             return;
 
         if (!await _announcementSink.UserHasDataAsync(user.Id))
-            return;
-
-        //ulong channelId = newState.VoiceChannel.Id;
-
-        //(_sendAudioQueue.ContainsKey(channelId)
-        //    ? _sendAudioQueue[channelId]
-        //    : (_sendAudioQueue[channelId] = new())).Enqueue(userData);
+            return;      
 
         StartAudioAsync(curr.VoiceChannel.Id, user.Id).Forget();
     }
@@ -102,33 +96,41 @@ internal class DiscordCommandService
         if (await _socketClient.GetChannelAsync(channelId) is not IVoiceChannel channel)
             return;
 
-        await Task.Delay(500);
+        (_sendAudioQueue.ContainsKey(channelId)
+            ? _sendAudioQueue[channelId]
+            : (_sendAudioQueue[channelId] = new())).Enqueue(userData);        
 
-        IAudioClient client = await _audioClientManager.GetClientAsync(channel);
+        await Task.Delay(500); // HACK
+
+        BlockingAudioClient client = await _audioClientManager.GetClientAsync(channel);
+
+        // bail if client is already playing on channel
+        if (!client.Acquire()) 
+            return;
 
         try
         {
-            userData.Position = 0L;
-            await client.SendPCMEncodedAudioAsync(userData);
+            if (!_sendAudioQueue.TryGetValue(channel.Id, out ConcurrentQueue<Stream>? audioQueue) ||
+                audioQueue is null)
+                return;
 
-            // TODO clean up this mess!!!
+            while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
+            {
+                stream.Position = 0;
+                await client.SendPCMEncodedAudioAsync(stream);
+            }
 
-            //if (!_sendAudioQueue.TryGetValue(channel.Id, out ConcurrentQueue<Stream>? audioQueue) ||
-            //audioQueue is null)
-            //    return;
-
-            //while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
-            //{
-            //    stream.Position = 0;
-            //    await client.SendPCMEncodedAudioAsync(stream);
-            //}
-
-            //_sendAudioQueue.TryRemove(channel.Id, out _);
+            _sendAudioQueue.TryRemove(channel.Id, out _);
+        }
+        catch (Exception e)
+        {
+            Log.Write(ERR, e, "Unexpected error in {method}", nameof(StartAudioAsync));
         }
         finally
         {
+            client.Release();
             await client.StopAsync();
-            await channel.DisconnectAsync();
+            await channel.DisconnectAsync();            
         }
     }
 
