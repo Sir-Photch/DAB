@@ -4,7 +4,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace DAB.Data.Sinks;
 
-internal class MemorySink : IAnnouncementSink, IDisposable
+internal class MemorySink : IUserDataSink, IDisposable
 {
     private readonly ConcurrentDictionary<ulong, MemoryStream> _userData = new();
     private bool _disposed = false;
@@ -23,18 +23,7 @@ internal class MemorySink : IAnnouncementSink, IDisposable
             data.Position = 0;
 
         MemoryStream ms = new();
-        try
-        {
-            int dataByte;
-            while ((dataByte = data.ReadByte()) != -1)
-            {
-                ms.WriteByte((byte)dataByte);
-            }
-        }
-        catch (Exception e)
-        {
-
-        }
+        await data.CopyToAsync(ms);
 
         if (_userData.ContainsKey(userId))
            _userData[userId].DisposeAsync().Forget();
@@ -42,12 +31,15 @@ internal class MemorySink : IAnnouncementSink, IDisposable
         _userData[userId] = ms;
     }
 
-    public Task<Stream> LoadAsync(ulong userId)
+    public Task<Stream?> LoadAsync(ulong userId)
     {
         if (_disposed)
             throw new ObjectDisposedException(nameof(_userData));
 
-        return Task.FromResult<Stream>(_userData[userId]);
+        if (_userData.ContainsKey(userId))
+            return Task.FromResult<Stream?>(null);
+
+        return Task.FromResult<Stream?>(_userData[userId]);
     }
 
     public async Task ClearAsync(ulong userId)

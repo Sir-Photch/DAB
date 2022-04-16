@@ -1,15 +1,18 @@
-﻿using Discord;
-using Discord.Commands;
+﻿using Discord.Audio;
 
 namespace DAB.Discord
 {
     internal static class Extensions
     {
-        internal static async Task<IUserMessage> ReplyEphemeralMessageAsync(this ICommandContext context, string message)
+        internal static async Task SendPCMEncodedAudioAsync(this IAudioClient client, Stream stream, CancellationToken token = default)
         {
-            return await context.Channel.SendMessageAsync(text: message,
-                                                          messageReference: new MessageReference(context.Message.Id, context.Channel.Id, context.Guild.Id),
-                                                          flags: MessageFlags.Ephemeral);
+            if (!stream.CanRead)
+                throw new ArgumentException("not readable", nameof(stream));
+
+            await using AudioOutStream pcmstream = client.CreatePCMStream(AudioApplication.Music);
+
+            try { await stream.CopyToAsync(pcmstream, token); }
+            finally { await pcmstream.FlushAsync(token); }
         }
     }
 }

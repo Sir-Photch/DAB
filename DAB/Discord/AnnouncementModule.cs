@@ -10,9 +10,9 @@ namespace DAB.Discord;
 
 public class AnnouncementModule : ModuleBase<ICommandContext>
 {
-    private readonly IAnnouncementSink _sink;
+    private readonly IUserDataSink _sink;
 
-    public AnnouncementModule(IAnnouncementSink sink)
+    public AnnouncementModule(IUserDataSink sink)
     {
         _sink = sink;
     }
@@ -22,7 +22,7 @@ public class AnnouncementModule : ModuleBase<ICommandContext>
     {
         if (!await _sink.UserHasDataAsync(Context.User.Id))
         {
-            await Context.ReplyEphemeralMessageAsync("You have no announcement!");
+            await ReplyAsync("You have no announcement!");
             return;
         }
 

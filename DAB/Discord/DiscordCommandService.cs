@@ -1,7 +1,7 @@
 ﻿using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
-using DAB.Discord.Audio;
 using Discord;
+using Discord.Audio;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.VisualStudio.Threading;
@@ -18,25 +18,25 @@ internal class DiscordCommandService
     private readonly DiscordSocketClient _socketClient;
     private readonly CommandService _commandService;
     private readonly IServiceProvider _serviceProvider;
-    private readonly IAnnouncementSink _announcementSink;
-    private readonly AudioService _audioService;
+    private readonly IUserDataSink _announcementSink;
+    private readonly AudioClientManager _audioClientManager;
 
-    private readonly SemaphoreSlim _sendAudioSemaphore = new(1);
-    private readonly ConcurrentQueue<Stream> _sendAudioQueue = new();
+    private readonly ConcurrentDictionary<ulong, ConcurrentQueue<Stream>> _sendAudioQueue = new();
 
     #endregion
 
     internal DiscordCommandService(
         IServiceProvider serviceProvider,
-        IAnnouncementSink? announcementSink = null,
+        AudioClientManager audioClientManager,
+        IUserDataSink? announcementSink = null,
         DiscordSocketClient? socketClient = null,
         CommandService? commandService = null)
     {
+        _audioClientManager = audioClientManager ?? throw new ArgumentNullException(nameof(audioClientManager));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _announcementSink = announcementSink ?? new MemorySink();
-        _socketClient = socketClient ?? new();
+        _socketClient = socketClient ?? new(new DiscordSocketConfig { GatewayIntents = GatewayIntents.AllUnprivileged });
         _commandService = commandService ?? new();
-        _audioService = new AudioService();
     }
 
     internal string CommandPrefix { get; init; } = "!";
@@ -74,23 +74,47 @@ internal class DiscordCommandService
             !await _announcementSink.UserHasDataAsync(user.Id))
             return;
 
-        Stream userData = await _announcementSink.LoadAsync(user.Id);
-        _sendAudioQueue.Enqueue(userData);
+        //ulong channelId = newState.VoiceChannel.Id;
 
-        StartAudio(newState.VoiceChannel);
+        //(_sendAudioQueue.ContainsKey(channelId)
+        //    ? _sendAudioQueue[channelId]
+        //    : (_sendAudioQueue[channelId] = new())).Enqueue(userData);
+
+        StartAudio(newState.VoiceChannel, user.Id);
     }
 
-    private void StartAudio(IVoiceChannel channel) => Task.Run(async () =>
+    private void StartAudio(IVoiceChannel channel, ulong userId) => Task.Run(async () =>
     {
-        await _audioService.JoinAudioAsync(channel.Guild, channel);
+        Stream? userData = await _announcementSink.LoadAsync(userId);
+        if (userData is null)
+            return;
 
-        while (_sendAudioQueue.TryDequeue(out Stream? result) && result is not null)
+        IAudioClient client = await _audioClientManager.GetClientAsync(channel);
+
+        try
         {
-            result.Position = 0;
-            await _audioService.SendAudioAsync(channel.Guild, result);
-        }
+            userData.Position = 0L;
+            await client.SendPCMEncodedAudioAsync(userData);
 
-        await _audioService.LeaveAudio(channel.Guild);
+            // TODO clean up this mess!!!
+
+            //if (!_sendAudioQueue.TryGetValue(channel.Id, out ConcurrentQueue<Stream>? audioQueue) ||
+            //audioQueue is null)
+            //    return;
+
+            //while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
+            //{
+            //    stream.Position = 0;
+            //    await client.SendPCMEncodedAudioAsync(stream);
+            //}
+
+            //_sendAudioQueue.TryRemove(channel.Id, out _);
+        }
+        finally
+        {
+            await client.StopAsync();
+            await channel.DisconnectAsync();
+        }
     });
 
     private async Task OnClientMessageReceivedAsync(SocketMessage arg)

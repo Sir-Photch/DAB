@@ -1,7 +1,6 @@
 ﻿using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
 using DAB.Discord;
-using DAB.Discord.Audio;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 
@@ -26,13 +25,13 @@ catch (InvalidOperationException ioe)
     return 1;
 }
 
-MemorySink debugSink = new() { DataSizeCapBytes = 2_000_000 };
+await using AudioClientManager audioClientManager = AudioClientManager.Instance;
+FileSystemSink debugSink = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userdata"));
 IServiceProvider serviceProvider = new ServiceCollection()
-                                      .AddSingleton<AudioService>()
-                                      .AddSingleton<IAnnouncementSink>(debugSink)
+                                      .AddSingleton<IUserDataSink>(debugSink)
                                       .BuildServiceProvider();
 
-await using DiscordCommandService discordCommandService = new(serviceProvider, debugSink);
+await using DiscordCommandService discordCommandService = new(serviceProvider, audioClientManager, debugSink);
 
 await discordCommandService.InitializeAsync();
 await discordCommandService.StartAsync(discordKeys.ApiKey);
