@@ -28,14 +28,14 @@ internal class DiscordCommandService
     internal DiscordCommandService(
         IServiceProvider serviceProvider,
         AudioClientManager audioClientManager,
-        IUserDataSink? announcementSink = null,
-        DiscordSocketClient? socketClient = null,
+        DiscordSocketClient socketClient,
+        IUserDataSink? announcementSink = null,        
         CommandService? commandService = null)
     {
         _audioClientManager = audioClientManager ?? throw new ArgumentNullException(nameof(audioClientManager));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _socketClient = socketClient ?? throw new ArgumentNullException(nameof(socketClient));
         _announcementSink = announcementSink ?? new MemorySink();
-        _socketClient = socketClient ?? new(new DiscordSocketConfig { GatewayIntents = GatewayIntents.AllUnprivileged });
         _commandService = commandService ?? new();
     }
 

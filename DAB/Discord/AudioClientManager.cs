@@ -33,6 +33,11 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
             
             return _activeAudioClients[target.Id] = await target.ConnectAsync();
         }
+        catch (Exception e)
+        {
+            Log.Write(FTL, e, "Error in GetClientAsync!");
+            throw;
+        }
         finally
         {
             _dictSemaphore.Release();
