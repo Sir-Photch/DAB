@@ -29,7 +29,7 @@ internal class DiscordCommandService
         IServiceProvider serviceProvider,
         AudioClientManager audioClientManager,
         DiscordSocketClient socketClient,
-        IUserDataSink? announcementSink = null,        
+        IUserDataSink? announcementSink = null,
         CommandService? commandService = null)
     {
         _audioClientManager = audioClientManager ?? throw new ArgumentNullException(nameof(audioClientManager));
@@ -67,11 +67,22 @@ internal class DiscordCommandService
 
     #region event-subscribers
 
-    private async Task OnClientUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState prevState, SocketVoiceState newState)
+    private async Task OnClientUserVoiceStateUpdatedAsync(
+        SocketUser user, SocketVoiceState prev, SocketVoiceState curr)
     {
-        if (user.IsWebhook || user.IsBot || newState.VoiceChannel is null ||
-            newState.IsSuppressed || newState.IsMuted ||
-            !await _announcementSink.UserHasDataAsync(user.Id))
+        if (user.IsBot || user.IsWebhook)
+            return;
+
+        // disconnected or not visible to bot
+        if (curr.VoiceChannel is null) 
+            return;
+
+        // switching channels within guild
+        if (prev.VoiceChannel is not null && 
+            prev.VoiceChannel.Guild.Id == curr.VoiceChannel.Guild.Id)
+            return;
+
+        if (!await _announcementSink.UserHasDataAsync(user.Id))
             return;
 
         //ulong channelId = newState.VoiceChannel.Id;
@@ -80,14 +91,18 @@ internal class DiscordCommandService
         //    ? _sendAudioQueue[channelId]
         //    : (_sendAudioQueue[channelId] = new())).Enqueue(userData);
 
-        StartAudio(newState.VoiceChannel, user.Id);
+        StartAudioAsync(curr.VoiceChannel.Id, user.Id).Forget();
     }
 
-    private void StartAudio(IVoiceChannel channel, ulong userId) => Task.Run(async () =>
+    private async Task StartAudioAsync(ulong channelId, ulong userId)
     {
-        Stream? userData = await _announcementSink.LoadAsync(userId);
-        if (userData is null)
+        if (await _announcementSink.LoadAsync(userId) is not Stream userData)
             return;
+
+        if (await _socketClient.GetChannelAsync(channelId) is not IVoiceChannel channel)
+            return;
+
+        await Task.Delay(500);
 
         IAudioClient client = await _audioClientManager.GetClientAsync(channel);
 
@@ -115,7 +130,7 @@ internal class DiscordCommandService
             await client.StopAsync();
             await channel.DisconnectAsync();
         }
-    });
+    }
 
     private async Task OnClientMessageReceivedAsync(SocketMessage arg)
     {
