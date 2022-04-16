@@ -9,6 +9,8 @@ internal class MemorySink : IAnnouncementSink, IDisposable
     private readonly ConcurrentDictionary<ulong, MemoryStream> _userData = new();
     private bool _disposed = false;
 
+    public int DataSizeCapBytes { get; init; } = 1_000_000; // 1 MB
+
     public async Task SaveAsync(ulong userId, Stream data)
     {
         if (_disposed)
@@ -21,10 +23,21 @@ internal class MemorySink : IAnnouncementSink, IDisposable
             data.Position = 0;
 
         MemoryStream ms = new();
-        await data.CopyToAsync(ms);
+        try
+        {
+            int dataByte;
+            while ((dataByte = data.ReadByte()) != -1)
+            {
+                ms.WriteByte((byte)dataByte);
+            }
+        }
+        catch (Exception e)
+        {
+
+        }
 
         if (_userData.ContainsKey(userId))
-            _userData[userId].DisposeAsync().Forget();
+           _userData[userId].DisposeAsync().Forget();
 
         _userData[userId] = ms;
     }
@@ -35,6 +48,16 @@ internal class MemorySink : IAnnouncementSink, IDisposable
             throw new ObjectDisposedException(nameof(_userData));
 
         return Task.FromResult<Stream>(_userData[userId]);
+    }
+
+    public async Task ClearAsync(ulong userId)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(_userData));
+
+        _userData.Remove(userId, out MemoryStream? ms);
+        if (ms is not null)
+            await ms.DisposeAsync();
     }
 
     public Task<bool> UserHasDataAsync(ulong userId)

@@ -4,12 +4,13 @@ using DAB.Discord.Audio;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Microsoft.VisualStudio.Threading;
 using System.Collections.Concurrent;
 using System.Reflection;
 
 namespace DAB.Discord;
 
-internal class DiscordCommandService : IDisposable, IAsyncDisposable
+internal class DiscordCommandService
 {
     #region fields
 
@@ -68,7 +69,7 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
 
     private async Task OnClientUserVoiceStateUpdatedAsync(SocketUser user, SocketVoiceState prevState, SocketVoiceState newState)
     {
-        if (user.IsWebhook || user.IsBot || newState.VoiceChannel is null || 
+        if (user.IsWebhook || user.IsBot || newState.VoiceChannel is null ||
             newState.IsSuppressed || newState.IsMuted ||
             !await _announcementSink.UserHasDataAsync(user.Id))
             return;
@@ -76,23 +77,21 @@ internal class DiscordCommandService : IDisposable, IAsyncDisposable
         Stream userData = await _announcementSink.LoadAsync(user.Id);
         _sendAudioQueue.Enqueue(userData);
 
-        if (!await _sendAudioSemaphore.WaitAsync(0))
-            return;
-
-        try
-        {
-            await _audioService.JoinAudioAsync(newState.VoiceChannel.Guild, newState.VoiceChannel);
-
-            while (_sendAudioQueue.TryDequeue(out Stream? result) && result is not null)
-                await _audioService.SendAudioAsync(newState.VoiceChannel.Guild, result);
-
-            await _audioService.LeaveAudio(newState.VoiceChannel.Guild);
-        }
-        finally
-        {
-            _sendAudioSemaphore.Release();
-        }
+        StartAudio(newState.VoiceChannel);
     }
+
+    private void StartAudio(IVoiceChannel channel) => Task.Run(async () =>
+    {
+        await _audioService.JoinAudioAsync(channel.Guild, channel);
+
+        while (_sendAudioQueue.TryDequeue(out Stream? result) && result is not null)
+        {
+            result.Position = 0;
+            await _audioService.SendAudioAsync(channel.Guild, result);
+        }
+
+        await _audioService.LeaveAudio(channel.Guild);
+    });
 
     private async Task OnClientMessageReceivedAsync(SocketMessage arg)
     {

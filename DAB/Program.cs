@@ -5,7 +5,7 @@ using DAB.Discord.Audio;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 
-void Cleanup(Stopwatch sw)
+static void Cleanup(Stopwatch sw)
 {
     Log.Write(INF, "Bot shutdown: {Uptime}", sw.Elapsed);
     Log.Flush();
@@ -26,13 +26,13 @@ catch (InvalidOperationException ioe)
     return 1;
 }
 
-IAnnouncementSink announcementSink = new MemorySink();
+MemorySink debugSink = new() { DataSizeCapBytes = 2_000_000 };
 IServiceProvider serviceProvider = new ServiceCollection()
                                       .AddSingleton<AudioService>()
-                                      .AddSingleton<IAnnouncementSink>(announcementSink)
+                                      .AddSingleton<IAnnouncementSink>(debugSink)
                                       .BuildServiceProvider();
 
-await using DiscordCommandService discordCommandService = new(serviceProvider, announcementSink);
+await using DiscordCommandService discordCommandService = new(serviceProvider, debugSink);
 
 await discordCommandService.InitializeAsync();
 await discordCommandService.StartAsync(discordKeys.ApiKey);

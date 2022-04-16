@@ -19,27 +19,27 @@ public class AudioModule : ModuleBase<ICommandContext>
         await _serivce.LeaveAudio(Context.Guild);
     }
 
-    [Command("play", RunMode = RunMode.Async)]
-    public async Task PlayCmdAsync([Remainder][Summary("fully qualified path to file")] string song)
-    {
-        try
-        {
-            await _serivce.JoinAudioAsync(Context.Guild, (Context.User as IVoiceState)?.VoiceChannel);
-        }
-        catch (ArgumentNullException ane)
-        {
-            Log.Write(DBG, ane, "Bad parameters on JoinAudioAsync {guild} {user}", Context.Guild, Context.User);
-            return;
-        }
-        try
-        {
-            using Stream pcmStream = PCMAudioPlayer.Create(song);
-            await _serivce.SendAudioAsync(Context.Guild, pcmStream);
-        }
-        catch (Exception e)
-        {
-            Log.Write(FTL, e, "unexpected exception in playcmd");
-        }
-        await _serivce.LeaveAudio(Context.Guild);
-    }
+    //[Command("play", RunMode = RunMode.Async)]
+    //public async Task PlayCmdAsync([Remainder][Summary("fully qualified path to file")] string song)
+    //{
+    //    try
+    //    {
+    //        await _serivce.JoinAudioAsync(Context.Guild, (Context.User as IVoiceState)?.VoiceChannel);
+    //    }
+    //    catch (ArgumentNullException ane)
+    //    {
+    //        Log.Write(DBG, ane, "Bad parameters on JoinAudioAsync {guild} {user}", Context.Guild, Context.User);
+    //        return;
+    //    }
+    //    try
+    //    {
+    //        using Stream pcmStream = PCMAudioEncoder.Create(song);
+    //        await _serivce.SendAudioAsync(Context.Guild, pcmStream);
+    //    }
+    //    catch (Exception e)
+    //    {
+    //        Log.Write(FTL, e, "unexpected exception in playcmd");
+    //    }
+    //    await _serivce.LeaveAudio(Context.Guild);
+    //}
 }
