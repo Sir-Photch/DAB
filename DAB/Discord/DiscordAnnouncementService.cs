@@ -1,16 +1,18 @@
-﻿using DAB.Data.Interfaces;
-using DAB.Data.Sinks;
+﻿using System.Reflection;
+using System.Collections.Concurrent;
+using Microsoft.VisualStudio.Threading;
 using Discord;
-using Discord.Audio;
 using Discord.Commands;
 using Discord.WebSocket;
-using Microsoft.VisualStudio.Threading;
-using System.Collections.Concurrent;
-using System.Reflection;
+using DAB.Data.Sinks;
+using DAB.Discord.Audio;
+using DAB.Discord.Enums;
+using DAB.Data.Interfaces;
+using DAB.Discord.Commands;
 
 namespace DAB.Discord;
 
-internal class DiscordCommandService
+internal class DiscordAnnouncementService
 {
     #region fields
 
@@ -25,7 +27,7 @@ internal class DiscordCommandService
 
     #endregion
 
-    internal DiscordCommandService(
+    internal DiscordAnnouncementService(
         IServiceProvider serviceProvider,
         AudioClientManager audioClientManager,
         DiscordSocketClient socketClient,
@@ -46,10 +48,59 @@ internal class DiscordCommandService
     internal async Task InitializeAsync()
     {
         _socketClient.Log += OnClientLogAsync;
-        _socketClient.MessageReceived += OnClientMessageReceivedAsync;
+
+        //_socketClient.MessageReceived += OnClientMessageReceivedAsync;
         _socketClient.UserVoiceStateUpdated += OnClientUserVoiceStateUpdatedAsync;
 
+        _socketClient.Ready += OnClientReadyAsync;
+        _socketClient.SlashCommandExecuted += OnSlashCommandExecutedAsync;
+
+        SlashCommandFactory.Initlaize(_serviceProvider);
         await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
+    }
+
+    private async Task OnSlashCommandExecutedAsync(SocketSlashCommand command)
+    {
+        var possibleCommandNames = typeof(SlashCommandType).GetFields()
+                                                       .Select(f => f.GetCustomAttribute<SlashCommandDetailsAttribute>())
+                                                       .Select(attr => attr?.CommandName)
+                                                       .Where(name => name == command.Data.Name);
+
+        if (!possibleCommandNames.Any())
+            return;
+
+        SlashCommandType? cmdType = SlashCommandFactory.FromString(possibleCommandNames.First());
+
+        if (cmdType is null)
+            return;
+
+        try
+        {
+            await command.DeferAsync(ephemeral: true);
+            IUserMessage response = await command.FollowupAsync("Thinking...", ephemeral: true);
+            await SlashCommandFactory.HandleCommandAsync(new SlashCommand
+            {
+                Command = command,
+                CommandType = cmdType.Value
+            });
+        }
+        catch (Exception e)
+        {
+            Log.Write(ERR, e, "Error in {method}", nameof(SlashCommandFactory.HandleCommandAsync));
+        }
+
+    }
+
+    private async Task OnClientReadyAsync()
+    {
+        try
+        {
+            await _socketClient.ApplyAllCommandsAsync();
+        }
+        catch (Exception e)
+        {
+            Log.Write(ERR, e, "Could not create slash-commands!");
+        }
     }
 
     internal async Task StartAsync(string token)
@@ -74,22 +125,16 @@ internal class DiscordCommandService
             return;
 
         // disconnected or not visible to bot
-        if (curr.VoiceChannel is null) 
+        if (curr.VoiceChannel is null)
             return;
 
         // switching channels within guild
-        if (prev.VoiceChannel is not null && 
+        if (prev.VoiceChannel is not null &&
             prev.VoiceChannel.Guild.Id == curr.VoiceChannel.Guild.Id)
             return;
 
         if (!await _announcementSink.UserHasDataAsync(user.Id))
             return;
-
-        //ulong channelId = newState.VoiceChannel.Id;
-
-        //(_sendAudioQueue.ContainsKey(channelId)
-        //    ? _sendAudioQueue[channelId]
-        //    : (_sendAudioQueue[channelId] = new())).Enqueue(userData);
 
         StartAudioAsync(curr.VoiceChannel.Id, user.Id).Forget();
     }
@@ -102,31 +147,39 @@ internal class DiscordCommandService
         if (await _socketClient.GetChannelAsync(channelId) is not IVoiceChannel channel)
             return;
 
-        await Task.Delay(500);
+        (_sendAudioQueue.ContainsKey(channelId)
+            ? _sendAudioQueue[channelId]
+            : (_sendAudioQueue[channelId] = new())).Enqueue(userData);
 
-        IAudioClient client = await _audioClientManager.GetClientAsync(channel);
+        await Task.Delay(500); // HACK
+
+        BlockingAudioClient client = await _audioClientManager.GetClientAsync(channel);
+
+        // bail if client is already playing on channel
+        if (!client.Acquire())
+            return;
 
         try
         {
-            userData.Position = 0L;
-            await client.SendPCMEncodedAudioAsync(userData);
+            if (!_sendAudioQueue.TryGetValue(channel.Id, out ConcurrentQueue<Stream>? audioQueue) ||
+                audioQueue is null)
+                return;
 
-            // TODO clean up this mess!!!
+            while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
+            {
+                stream.Position = 0;
+                await client.SendPCMEncodedAudioAsync(stream);
+            }
 
-            //if (!_sendAudioQueue.TryGetValue(channel.Id, out ConcurrentQueue<Stream>? audioQueue) ||
-            //audioQueue is null)
-            //    return;
-
-            //while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
-            //{
-            //    stream.Position = 0;
-            //    await client.SendPCMEncodedAudioAsync(stream);
-            //}
-
-            //_sendAudioQueue.TryRemove(channel.Id, out _);
+            _sendAudioQueue.TryRemove(channel.Id, out _);
+        }
+        catch (Exception e)
+        {
+            Log.Write(ERR, e, "Unexpected error in {method}", nameof(StartAudioAsync));
         }
         finally
         {
+            client.Release();
             await client.StopAsync();
             await channel.DisconnectAsync();
         }

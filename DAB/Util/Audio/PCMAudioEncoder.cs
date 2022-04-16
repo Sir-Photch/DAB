@@ -1,10 +1,10 @@
 ﻿using CliWrap;
 
-namespace DAB.Audio;
+namespace DAB.Util.Audio;
 
 internal static class PCMAudioEncoder
 {
-    internal static async Task<Stream> Encode(Stream toBeEncoded)
+    internal static async Task<Stream> EncodeAsync(Stream toBeEncoded)
     {
         if (!toBeEncoded.CanRead)
             throw new ArgumentException("Not readable", nameof(toBeEncoded));

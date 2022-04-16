@@ -1,6 +1,4 @@
-﻿
-
-namespace DAB.Data;
+﻿namespace DAB.Data;
 
 internal class StreamFileAbstraction : TagLib.File.IFileAbstraction
 {
@@ -18,8 +16,5 @@ internal class StreamFileAbstraction : TagLib.File.IFileAbstraction
 
     public Stream WriteStream => _stream;
 
-    public void CloseStream(Stream stream)
-    {
-        
-    }
+    public void CloseStream(Stream stream) { }
 }

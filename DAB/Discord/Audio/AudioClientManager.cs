@@ -1,14 +1,11 @@
 ﻿using Discord;
 using Discord.Audio;
 
-namespace DAB.Discord;
+namespace DAB.Discord.Audio;
 
-/*
- * https://gist.github.com/Joe4evr/773d3ce6cc10dbea6924d59bbfa3c62a
- */
 internal class AudioClientManager : IDisposable, IAsyncDisposable
 {
-    private readonly Dictionary<ulong, IAudioClient> _activeAudioClients = new();
+    private readonly Dictionary<ulong, BlockingAudioClient> _activeAudioClients = new();
     private readonly SemaphoreSlim _dictSemaphore = new(1);
 
     private static AudioClientManager? _instance;
@@ -17,7 +14,7 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
 
     private AudioClientManager() { }
 
-    internal async Task<IAudioClient> GetClientAsync(IVoiceChannel target, CancellationToken token = default)
+    internal async Task<BlockingAudioClient> GetClientAsync(IVoiceChannel target, CancellationToken token = default)
     {
         await _dictSemaphore.WaitAsync(token);
 
@@ -25,13 +22,13 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
         {
             if (_activeAudioClients.ContainsKey(target.Id))
             {
-                IAudioClient knownClient = _activeAudioClients[target.Id];
+                BlockingAudioClient knownClient = _activeAudioClients[target.Id];
                 if (knownClient.ConnectionState is ConnectionState.Connected or ConnectionState.Connecting)
                     return knownClient;                
             }
 
             
-            return _activeAudioClients[target.Id] = await target.ConnectAsync();
+            return _activeAudioClients[target.Id] = new(await target.ConnectAsync());
         }
         catch (Exception e)
         {

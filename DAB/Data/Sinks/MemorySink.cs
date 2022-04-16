@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
-using DAB.Data.Interfaces;
 using Microsoft.VisualStudio.Threading;
+using DAB.Data.Interfaces;
 
 namespace DAB.Data.Sinks;
 
