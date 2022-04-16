@@ -1,6 +1,4 @@
-﻿using Discord;
-
-namespace DAB.Discord.Abstracts;
+﻿namespace DAB.Discord.Abstracts;
 
 internal abstract class AbstractHandlerModule<T>
 {

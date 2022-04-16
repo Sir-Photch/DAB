@@ -1,5 +1,5 @@
-﻿using DAB.Data.Interfaces;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+using DAB.Data.Interfaces;
 
 namespace DAB.Data.Sinks
 {

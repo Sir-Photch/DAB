@@ -1,11 +1,8 @@
 ﻿using Discord;
 using Discord.Audio;
 
-namespace DAB.Discord;
+namespace DAB.Discord.Audio;
 
-/*
- * https://gist.github.com/Joe4evr/773d3ce6cc10dbea6924d59bbfa3c62a
- */
 internal class AudioClientManager : IDisposable, IAsyncDisposable
 {
     private readonly Dictionary<ulong, BlockingAudioClient> _activeAudioClients = new();

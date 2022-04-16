@@ -6,7 +6,7 @@ internal static class Config
 {
     internal const string CONFIG_FILENAME = "config.json";
 
-    internal class DiscordKeys // wait for records to be supported...
+    internal class DiscordKeys // waiting for records to be supported...
     {
         public string? ApiKey { get; init; }
     }

@@ -1,15 +1,15 @@
-﻿using DAB.Audio;
-using DAB.Data;
-using DAB.Data.Interfaces;
-using DAB.Discord.Abstracts;
-using DAB.Discord.Enums;
+﻿using Microsoft.VisualStudio.Threading;
 using Discord;
-using Microsoft.VisualStudio.Threading;
-using System.Runtime.CompilerServices;
 using TagLib;
 using File = TagLib.File;
+using DAB.Data;
+using DAB.Util.Audio;
+using DAB.Discord.Enums;
+using DAB.Discord.Commands;
+using DAB.Data.Interfaces;
+using DAB.Discord.Abstracts;
 
-namespace DAB.Discord;
+namespace DAB.Discord.HandlerModules;
 
 internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 {
@@ -123,7 +123,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
             return;
         }
 
-        using Stream pcmStream = await PCMAudioEncoder.Encode(ms);
+        using Stream pcmStream = await PCMAudioEncoder.EncodeAsync(ms);
         await _sink.SaveAsync(interaction.User.Id, pcmStream);
         await interaction.FollowupAsync("Your announcement has been saved!", ephemeral: true);
     }

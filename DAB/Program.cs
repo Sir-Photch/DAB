@@ -1,11 +1,13 @@
-﻿using DAB.Data.Interfaces;
-using DAB.Data.Sinks;
-using DAB.Discord;
-using DAB.Discord.Abstracts;
+﻿using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Discord;
 using Discord.WebSocket;
-using Microsoft.Extensions.DependencyInjection;
-using System.Diagnostics;
+using DAB.Discord;
+using DAB.Data.Sinks;
+using DAB.Discord.Audio;
+using DAB.Discord.Commands;
+using DAB.Discord.Abstracts;
+using DAB.Discord.HandlerModules;
 
 const string DAB_LOGO = "######     #    ######\n#     #   # #   #     #\n#     #  #   #  #     #\n#     # #     # ######\n#     # ####### #     #\n#     # #     # #     #\n######  #     # ######\n";
 
@@ -14,6 +16,8 @@ static void Cleanup(Stopwatch sw)
     Log.Write(INF, "Bot shutdown after: {uptime}", sw.Elapsed);
     Log.Flush();
 }
+
+// ------------------- APPLICATION START ------------------
 
 Console.ForegroundColor = ConsoleColor.Yellow;
 Console.WriteLine(DAB_LOGO);
