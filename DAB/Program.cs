@@ -1,6 +1,7 @@
 ﻿using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
 using DAB.Discord;
+using DAB.Discord.Abstracts;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ const string DAB_LOGO = "######     #    ######\n#     #   # #   #     #\n#     
 
 static void Cleanup(Stopwatch sw)
 {
-    Log.Write(INF, "Bot shutdown: {Uptime}", sw.Elapsed);
+    Log.Write(INF, "Bot shutdown after: {uptime}", sw.Elapsed);
     Log.Flush();
 }
 
@@ -37,18 +38,23 @@ catch (InvalidOperationException ioe)
 await using DiscordSocketClient client = new(new()
 {
     GatewayIntents = GatewayIntents.AllUnprivileged
-                   & ~(GatewayIntents.GuildScheduledEvents | GatewayIntents.GuildInvites)
+                   & ~(GatewayIntents.GuildScheduledEvents | GatewayIntents.GuildInvites),
+    UseInteractionSnowflakeDate = false
 });
+
 await using AudioClientManager audioClientManager = AudioClientManager.Instance;
+
 FileSystemSink debugSink = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userdata"));
+AbstractHandlerModule<SlashCommand> handlerModule = new AnnouncementHandlerModule(debugSink);
+
 IServiceProvider serviceProvider = new ServiceCollection()
                                       .AddSingleton<DiscordSocketClient>(client)
-                                      .AddSingleton<IUserDataSink>(debugSink)
+                                      .AddSingleton<AbstractHandlerModule<SlashCommand>>(handlerModule)
                                       .BuildServiceProvider();
 
-await using DiscordCommandService discordCommandService = new(serviceProvider, audioClientManager, client, debugSink);
+await using DiscordAnnouncementService discordCommandService = new(serviceProvider, audioClientManager, client, debugSink);
 
-Log.Write(INF, "Bot startup: {StartupTime}", DateTime.Now);
+Log.Write(INF, "Bot startup: {startupTime}", DateTime.Now);
 
 
 await discordCommandService.InitializeAsync();

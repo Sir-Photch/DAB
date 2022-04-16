@@ -1,7 +1,8 @@
 ﻿using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
+using DAB.Discord.Commands;
+using DAB.Discord.Enums;
 using Discord;
-using Discord.Audio;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.VisualStudio.Threading;
@@ -10,7 +11,7 @@ using System.Reflection;
 
 namespace DAB.Discord;
 
-internal class DiscordCommandService
+internal class DiscordAnnouncementService
 {
     #region fields
 
@@ -25,7 +26,7 @@ internal class DiscordCommandService
 
     #endregion
 
-    internal DiscordCommandService(
+    internal DiscordAnnouncementService(
         IServiceProvider serviceProvider,
         AudioClientManager audioClientManager,
         DiscordSocketClient socketClient,
@@ -46,10 +47,59 @@ internal class DiscordCommandService
     internal async Task InitializeAsync()
     {
         _socketClient.Log += OnClientLogAsync;
-        _socketClient.MessageReceived += OnClientMessageReceivedAsync;
+
+        //_socketClient.MessageReceived += OnClientMessageReceivedAsync;
         _socketClient.UserVoiceStateUpdated += OnClientUserVoiceStateUpdatedAsync;
 
+        _socketClient.Ready += OnClientReadyAsync;
+        _socketClient.SlashCommandExecuted += OnSlashCommandExecutedAsync;
+
+        SlashCommandFactory.Initlaize(_serviceProvider);
         await _commandService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
+    }
+
+    private async Task OnSlashCommandExecutedAsync(SocketSlashCommand command)
+    {
+        var possibleCommandNames = typeof(SlashCommandType).GetFields()
+                                                       .Select(f => f.GetCustomAttribute<SlashCommandDetailsAttribute>())
+                                                       .Select(attr => attr?.CommandName)
+                                                       .Where(name => name == command.Data.Name);
+
+        if (!possibleCommandNames.Any())
+            return;
+
+        SlashCommandType? cmdType = SlashCommandFactory.FromString(possibleCommandNames.First());
+
+        if (cmdType is null)
+            return;
+
+        try
+        {
+            await command.DeferAsync(ephemeral: true);
+            IUserMessage response = await command.FollowupAsync("Thinking...", ephemeral: true);
+            await SlashCommandFactory.HandleCommandAsync(new SlashCommand
+            {
+                Command = command,
+                CommandType = cmdType.Value
+            });
+        }
+        catch (Exception e)
+        {
+            Log.Write(ERR, e, "Error in {method}", nameof(SlashCommandFactory.HandleCommandAsync));
+        }
+
+    }
+
+    private async Task OnClientReadyAsync()
+    {
+        try
+        {
+            await _socketClient.ApplyAllCommandsAsync();
+        }
+        catch (Exception e)
+        {
+            Log.Write(ERR, e, "Could not create slash-commands!");
+        }
     }
 
     internal async Task StartAsync(string token)
@@ -74,16 +124,16 @@ internal class DiscordCommandService
             return;
 
         // disconnected or not visible to bot
-        if (curr.VoiceChannel is null) 
+        if (curr.VoiceChannel is null)
             return;
 
         // switching channels within guild
-        if (prev.VoiceChannel is not null && 
+        if (prev.VoiceChannel is not null &&
             prev.VoiceChannel.Guild.Id == curr.VoiceChannel.Guild.Id)
             return;
 
         if (!await _announcementSink.UserHasDataAsync(user.Id))
-            return;      
+            return;
 
         StartAudioAsync(curr.VoiceChannel.Id, user.Id).Forget();
     }
@@ -98,14 +148,14 @@ internal class DiscordCommandService
 
         (_sendAudioQueue.ContainsKey(channelId)
             ? _sendAudioQueue[channelId]
-            : (_sendAudioQueue[channelId] = new())).Enqueue(userData);        
+            : (_sendAudioQueue[channelId] = new())).Enqueue(userData);
 
         await Task.Delay(500); // HACK
 
         BlockingAudioClient client = await _audioClientManager.GetClientAsync(channel);
 
         // bail if client is already playing on channel
-        if (!client.Acquire()) 
+        if (!client.Acquire())
             return;
 
         try
@@ -130,7 +180,7 @@ internal class DiscordCommandService
         {
             client.Release();
             await client.StopAsync();
-            await channel.DisconnectAsync();            
+            await channel.DisconnectAsync();
         }
     }
 
