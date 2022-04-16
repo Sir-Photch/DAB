@@ -35,7 +35,7 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
         }
         catch (Exception e)
         {
-            Log.Write(FTL, e, "Error in GetClientAsync!");
+            Log.Write(FTL, e, "GetClientAsync error!");
             throw;
         }
         finally
