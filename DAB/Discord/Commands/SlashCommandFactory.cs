@@ -12,11 +12,18 @@ internal static class SlashCommandFactory
 
     internal static void Initlaize(IServiceProvider serviceProvider)
     {
+#if DEBUG
+        if (serviceProvider is null) throw new ArgumentNullException(nameof(serviceProvider));
+#endif
         _serviceProvider = serviceProvider;
     }
 
     internal static async Task ApplyAllCommandsAsync(this DiscordSocketClient client)
     {
+#if DEBUG
+        if (client is null) throw new ArgumentNullException(nameof(client));
+        if (client.ConnectionState is not ConnectionState.Connected) throw new InvalidOperationException($"{nameof(client)} is not connected");
+#endif
         await Task.WhenAll(
             Enum.GetValues<SlashCommandType>().Select(x => Task.Run(async () =>
             {
@@ -30,10 +37,10 @@ internal static class SlashCommandFactory
 
     internal static SlashCommandProperties? CreateCommand(SlashCommandType commandType)
     {
-        var builder = new SlashCommandBuilder().ApplySlashCommandDetails(commandType);
-
-        if (builder is null)
+        if (commandType is SlashCommandType.INVALID)
             return null;
+
+        var builder = new SlashCommandBuilder().ApplySlashCommandDetails(commandType);
 
         switch (commandType)
         {
@@ -46,10 +53,10 @@ internal static class SlashCommandFactory
                 break;
             case SlashCommandType.CLEAR_CHIME:                
                 break;
-            case SlashCommandType.INVALID:
-                return null;
+#if DEBUG
             default:
                 throw new NotImplementedException();
+#endif
         }
 
         return builder.Build();
@@ -57,6 +64,9 @@ internal static class SlashCommandFactory
 
     internal static SlashCommandType? FromString(string? str)
     {
+        if (str is null)
+            return null;
+
         var obj = typeof(SlashCommandType).GetFields()
                                       .Where(x => x.GetCustomAttribute<SlashCommandDetailsAttribute>()?.CommandName == str)
                                       .FirstOrDefault()?.GetValue(null);
@@ -71,27 +81,27 @@ internal static class SlashCommandFactory
     {
         var handler = _serviceProvider?.GetService(typeof(AbstractHandlerModule<SlashCommand>)) as AbstractHandlerModule<SlashCommand>;
 
-        if (handler is null)
-            throw new NotSupportedException($"ServiceProvider did not contain instance of {nameof(AbstractHandlerModule<SlashCommand>)}");
+#if DEBUG
+        if (handler is null) throw new NotSupportedException($"ServiceProvider did not contain instance of {nameof(AbstractHandlerModule<SlashCommand>)}");
+#endif
 
         handler.Context = command;
         await handler.HandleAsync();
     }
 
-    private static SlashCommandBuilder? ApplySlashCommandDetails(this SlashCommandBuilder builder, SlashCommandType commandType)
+    private static SlashCommandBuilder ApplySlashCommandDetails(this SlashCommandBuilder builder, SlashCommandType commandType)
     {
-        if (builder is null)
-            throw new ArgumentNullException(nameof(builder));
+#if DEBUG
+        if (builder is null) throw new ArgumentNullException(nameof(builder));
+#endif
+        
+        var details = commandType.GetType()
+                                 .GetField(commandType.ToString())
+                                 ?.GetCustomAttribute<SlashCommandDetailsAttribute>();
 
-        var details = commandType.GetType().GetField(commandType.ToString())?.GetCustomAttribute<SlashCommandDetailsAttribute>();
-        if (details is null)
-        {
-            if (commandType is SlashCommandType.INVALID)
-            {
-                return null;
-            }
-            else throw new NotImplementedException();
-        }
+#if DEBUG
+        if (details is null) throw new NotImplementedException();
+#endif
 
         return builder.WithName(details.CommandName).WithDescription(details.Description);
     }

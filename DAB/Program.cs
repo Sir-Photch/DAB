@@ -8,6 +8,7 @@ using DAB.Discord.Audio;
 using DAB.Discord.Commands;
 using DAB.Discord.Abstracts;
 using DAB.Discord.HandlerModules;
+using DAB.Data.Interfaces;
 
 const string DAB_LOGO = "######     #    ######\n#     #   # #   #     #\n#     #  #   #  #     #\n#     # #     # ######\n#     # ####### #     #\n#     # #     # #     #\n######  #     # ######\n";
 
@@ -39,34 +40,38 @@ catch (InvalidOperationException ioe)
     return 1;
 }
 
-await using DiscordSocketClient client = new(new()
+DiscordSocketClient client = new(new()
 {
     GatewayIntents = GatewayIntents.AllUnprivileged
                    & ~(GatewayIntents.GuildScheduledEvents | GatewayIntents.GuildInvites),
     UseInteractionSnowflakeDate = false
 });
-
-await using AudioClientManager audioClientManager = AudioClientManager.Instance;
-
-FileSystemSink debugSink = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userdata"));
-AbstractHandlerModule<SlashCommand> handlerModule = new AnnouncementHandlerModule(debugSink);
+client.Log += msg =>
+{
+    (Log.Level level, string source, string message, Exception? e) = msg;
+    Log.Write(level, e, "[{source}] | {message}", source.PadRight(7), message);
+    return Task.CompletedTask;
+};
 
 IServiceProvider serviceProvider = new ServiceCollection()
-                                      .AddSingleton<DiscordSocketClient>(client)
-                                      .AddSingleton<AbstractHandlerModule<SlashCommand>>(handlerModule)
+                                      .AddSingleton(client)
+                                      .AddSingleton(AudioClientManager.Instance)
+                                      .AddSingleton<AbstractHandlerModule<SlashCommand>>(provider => new AnnouncementHandlerModule(provider))
+                                      .AddSingleton<IUserDataSink>(new FileSystemSink(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userdata")))
                                       .BuildServiceProvider();
 
-await using DiscordAnnouncementService discordCommandService = new(serviceProvider, audioClientManager, client, debugSink);
+DiscordAnnouncementService discordCommandService = new(serviceProvider);
 
 Log.Write(INF, "Bot startup: {startupTime}", DateTime.Now);
 
-
-await discordCommandService.InitializeAsync();
-await discordCommandService.StartAsync(discordKeys.ApiKey);
+// I guess you go: start -> then login; and the other way around for: logout -> stop
+await client.StartAsync();
+await client.LoginAsync(TokenType.Bot, discordKeys.ApiKey);
 
 while (Console.ReadKey(intercept: true).KeyChar != 'q') ;
 
-await discordCommandService.StopAsync();
+await client.LogoutAsync();
+await client.StopAsync();
 
 Cleanup(stopwatch);
 return 0;

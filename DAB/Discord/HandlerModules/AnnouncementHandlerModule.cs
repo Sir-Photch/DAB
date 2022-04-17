@@ -15,9 +15,14 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 {
     private readonly IUserDataSink _sink;
 
-    internal AnnouncementHandlerModule(IUserDataSink sink)
+    internal AnnouncementHandlerModule(IServiceProvider serviceProvider)
     {
-        _sink = sink;
+#if DEBUG
+        if (serviceProvider is null) throw new ArgumentNullException(nameof(serviceProvider));
+#endif
+
+        _sink = serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink
+                ?? throw new NotSupportedException($"{nameof(IUserDataSink)} missing from {nameof(serviceProvider)}");
     }
 
     internal override async Task HandleAsync()
@@ -50,6 +55,8 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         if (option?.Value is not IAttachment attachment)
             return;
 
+#pragma warning disable CS8602, CS8604 // method will return if context is null
+
         if (_sink.DataSizeCapBytes > 0 && attachment.Size > _sink.DataSizeCapBytes)
         {
             await context.FollowupAsync($"Whoa, this file is to big. It can be at most {_sink.DataSizeCapBytes} bytes", ephemeral: true);
@@ -64,6 +71,8 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         }
 
         Task.Run(() => LoadAudioFileAsync(attachment, context)).Forget();
+
+#pragma warning restore CS8602, CS8604
     }
 
     private async Task ClearChimeAsync()
@@ -79,12 +88,17 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
             return;
         }
 
-        await _sink.ClearAsync(Context.User.Id);
-        await context.FollowupAsync("Success! I won't cheer you on anymore :'(");
+        await _sink.ClearAsync(context.User.Id);
+        await context.FollowupAsync("Success! I won't cheer you on anymore :'(", ephemeral: true);
     }
 
     private async Task LoadAudioFileAsync(IAttachment attachment, ISlashCommandInteraction interaction)
     {
+#if DEBUG
+        if (attachment is null) throw new ArgumentNullException(nameof(attachment));
+        if (interaction is null) throw new ArgumentNullException(nameof(interaction));
+#endif
+
         using HttpClient client = new();
         using Stream data = await client.GetStreamAsync(attachment.Url);
 
