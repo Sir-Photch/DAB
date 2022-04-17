@@ -47,4 +47,4 @@ In general, the default settings will work out most of the time.
 - very short chimes won't play
 
 ## Contributing
-Kudos to you for scrolling this far! If you want to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md)
+Kudos to you for scrolling this far! If you want to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
