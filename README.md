@@ -1,5 +1,5 @@
 <p align="right">
-  <img src="logo.png" alt="DAB-Logo" width=150/>
+  <img src="logo.png" alt="DAB-Logo" />
 </p>
 
 # DAB - *Discord Announcement Bot*
