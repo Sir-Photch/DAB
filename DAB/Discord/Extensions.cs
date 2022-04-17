@@ -6,8 +6,10 @@ internal static class Extensions
 {
     internal static async Task SendPCMEncodedAudioAsync(this IAudioClient client, Stream stream, CancellationToken token = default)
     {
-        if (!stream.CanRead)
-            throw new ArgumentException("not readable", nameof(stream));
+#if DEBUG
+        if (client is null) throw new ArgumentNullException(nameof(client));
+        if (!stream.CanRead) throw new ArgumentException("not readable", nameof(stream));
+#endif
 
         await using AudioOutStream pcmstream = client.CreatePCMStream(AudioApplication.Music);
 

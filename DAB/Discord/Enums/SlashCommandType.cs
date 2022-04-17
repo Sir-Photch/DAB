@@ -2,7 +2,6 @@
 
 namespace DAB.Discord.Enums;
 
-#pragma warning disable IDE0055 // auto formatting
 internal enum SlashCommandType
 {
     INVALID,
@@ -11,4 +10,3 @@ internal enum SlashCommandType
     [SlashCommandDetails("clear-chime", "clear your chime")]
     CLEAR_CHIME
 }
-#pragma warning restore IDE0055

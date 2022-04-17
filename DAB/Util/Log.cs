@@ -1,10 +1,10 @@
-﻿using System.Text;
-using System.Globalization;
-using System.Runtime.CompilerServices;
-using Serilog;
+﻿using Serilog;
 using Serilog.Events;
 using Serilog.Exceptions;
 using Serilog.Formatting.Json;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace DAB.Util;
 

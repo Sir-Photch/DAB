@@ -1,6 +1,6 @@
-﻿using Discord;
+﻿using DAB.Discord.Enums;
+using Discord;
 using Discord.WebSocket;
-using DAB.Discord.Enums;
 
 namespace DAB.Discord.Commands;
 
@@ -31,7 +31,7 @@ internal class SlashCommand : ISlashCommandInteraction, IApplicationCommandInter
 
     public bool IsDMInteraction => ((IDiscordInteraction)Command).IsDMInteraction;
 
-    public DateTimeOffset CreatedAt => ((ISnowflakeEntity)Command).CreatedAt;        
+    public DateTimeOffset CreatedAt => ((ISnowflakeEntity)Command).CreatedAt;
 
     IDiscordInteractionData IDiscordInteraction.Data => ((IDiscordInteraction)Command).Data;
 

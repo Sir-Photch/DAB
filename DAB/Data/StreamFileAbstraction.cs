@@ -6,6 +6,9 @@ internal class StreamFileAbstraction : TagLib.File.IFileAbstraction
 
     internal StreamFileAbstraction(Stream stream, string? name = null)
     {
+#if DEBUG
+        if (stream is null) throw new ArgumentNullException(nameof(stream));
+#endif
         _stream = stream;
         Name = name;
     }

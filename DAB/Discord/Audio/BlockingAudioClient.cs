@@ -5,11 +5,18 @@ namespace DAB.Discord.Audio;
 
 internal class BlockingAudioClient : IAudioClient
 {
+    #region private fields
+
     private readonly IAudioClient _underlyingClient;
     private readonly SemaphoreSlim _clientSemaphore = new(1);
 
+    #endregion
+
     public BlockingAudioClient(IAudioClient toBeWrapped)
     {
+#if DEBUG
+        if (toBeWrapped is null) throw new ArgumentNullException(nameof(toBeWrapped));
+#endif
         _underlyingClient = toBeWrapped;
     }
 

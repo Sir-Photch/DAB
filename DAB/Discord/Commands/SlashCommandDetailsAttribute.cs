@@ -7,8 +7,8 @@ internal class SlashCommandDetailsAttribute : Attribute
 
     public string Description { get; }
 
-    internal SlashCommandDetailsAttribute(string command, string description) 
-    { 
+    internal SlashCommandDetailsAttribute(string command, string description)
+    {
         CommandName = command;
         Description = description;
     }

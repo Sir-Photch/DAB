@@ -1,6 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using DAB.Data.Interfaces;
 using Microsoft.VisualStudio.Threading;
-using DAB.Data.Interfaces;
+using System.Collections.Concurrent;
 
 namespace DAB.Data.Sinks;
 
@@ -11,10 +11,13 @@ internal class MemorySink : IUserDataSink, IDisposable
 
     public int DataSizeCapBytes { get; init; } = 1_000_000; // 1 MB
 
+    /// <exception cref="ArgumentException"></exception>
     public async Task SaveAsync(ulong userId, Stream data)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(_userData));
+#if DEBUG
+        if (_disposed) throw new ObjectDisposedException(nameof(_userData));
+        if (data is null) throw new ArgumentNullException(nameof(data));
+#endif
 
         if (!data.CanRead)
             throw new ArgumentException("not readable", nameof(data));
@@ -26,15 +29,16 @@ internal class MemorySink : IUserDataSink, IDisposable
         await data.CopyToAsync(ms);
 
         if (_userData.ContainsKey(userId))
-           _userData[userId].DisposeAsync().Forget();
+            _userData[userId].DisposeAsync().Forget();
 
         _userData[userId] = ms;
     }
 
     public Task<Stream?> LoadAsync(ulong userId)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(_userData));
+#if DEBUG
+        if (_disposed) throw new ObjectDisposedException(nameof(_userData));
+#endif
 
         if (_userData.ContainsKey(userId))
             return Task.FromResult<Stream?>(null);
@@ -44,8 +48,9 @@ internal class MemorySink : IUserDataSink, IDisposable
 
     public async Task ClearAsync(ulong userId)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(_userData));
+#if DEBUG
+        if (_disposed) throw new ObjectDisposedException(nameof(_userData));
+#endif
 
         _userData.Remove(userId, out MemoryStream? ms);
         if (ms is not null)
@@ -68,5 +73,5 @@ internal class MemorySink : IUserDataSink, IDisposable
         _userData.Clear();
 
         _disposed = true;
-    }    
+    }
 }
