@@ -10,9 +10,10 @@ On completing an item, link your PR next to it and move it to the **DONE**-secti
 On creating a new item, append it to the **TODO**-list.
 
 ## TODO
-- provide http-link to audio-file
-- create ability to limit playback of chime to only once in given timespan
-- text to speech???
+- ability for users to provide http-link for audio-file
+- ability to limit playback of chime to only once in given timespan in config
+- ability for users to provide text for text-to-speech
+- fix playback problems !!!
 
 ## DONE
 - ~Base implementation~ [PR](https://github.com/Sir-Photch/DAB/pull/5)
