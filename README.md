@@ -39,6 +39,8 @@ Currently, the config consists of:
 - `"ChimeFilesizeMaxKb":` signed integer containing the maximum filesize a user can upload, in kilobytes. For no limit, set -1.
 - `"ChimePlaybackTimeoutMs":` signed integer containing the maximum duration after playing a chime will time out, in milliseconds. This is recommended to be set. For no limit, set -1
 
+In general, the default settings will work out most of the time
+
 ## Known issues
 - playback stutters on weaker machines
 - playback quality
