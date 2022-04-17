@@ -16,4 +16,4 @@ On creating a new item, append it to the **TODO**-list.
 - fix playback problems !!!
 
 ## DONE
-- ~Base implementation~ [PR](https://github.com/Sir-Photch/DAB/pull/5)
+- ~Initial version~ [PR](https://github.com/Sir-Photch/DAB/pull/5)
