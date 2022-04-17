@@ -8,11 +8,12 @@ Consider [dependencies needed to run](./DEPENDENCIES.md).
 On first startup, the bot will exit stating that a default-config has been created. You need to add your Discord-API-Key in `config.json`.
 
 ## Features
+### Slash-commands
 ```
 /set-chime <audio-file> # sets chime of user to given attachment
 /clear-chime            # clears chime of user, if present
 ```
-
+### Behaviour
 If some user connects to a channel, the bot will join that channel and play the chime of the user, if configured.
 After playing, the bot will leave.
 
