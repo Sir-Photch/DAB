@@ -1,6 +1,5 @@
 ﻿using System.Text;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using Serilog;
 using Serilog.Events;
 using Serilog.Exceptions;
