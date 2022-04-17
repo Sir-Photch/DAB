@@ -1,4 +1,5 @@
-﻿using DAB.Data.Interfaces;
+﻿using DAB.Configuration;
+using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
 using DAB.Discord.Audio;
 using DAB.Discord.Commands;
@@ -22,6 +23,8 @@ internal class DiscordAnnouncementService
     private readonly IUserDataSink _announcementSink;
     private readonly AudioClientManager _audioClientManager;
 
+    private readonly int _sendAudioTimeoutMs;
+
     private readonly ConcurrentDictionary<ulong, ConcurrentQueue<Stream>> _sendAudioQueue = new();
 
     #endregion
@@ -41,7 +44,7 @@ internal class DiscordAnnouncementService
 #endif
         _audioClientManager = _serviceProvider.GetService(typeof(AudioClientManager)) as AudioClientManager;
         _socketClient = _serviceProvider.GetService(typeof(DiscordSocketClient)) as DiscordSocketClient;
-        _announcementSink = _serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink;
+        _announcementSink = _serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink;        
 #if DEBUG
 #pragma warning restore CS8601
 #endif
@@ -54,6 +57,9 @@ internal class DiscordAnnouncementService
             Log.Write(WRN, "No datasink configured! Will default to volatile memory-sink");
             _announcementSink = new MemorySink();
         }
+
+        _sendAudioTimeoutMs = (_serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot)
+                            ?.Bot.ChimePlaybackTimeoutMs ?? 10_000;
 
         _socketClient.Ready += OnClientReadyAsync;
 
@@ -166,11 +172,16 @@ internal class DiscordAnnouncementService
             while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
             {
                 stream.Position = 0;
-                CancellationTokenSource cts = new(5000); // HACK
+                CancellationTokenSource cts = new(_sendAudioTimeoutMs); // HACK
                 await audioClient.SendPCMEncodedAudioAsync(stream, cts.Token);
             }
 
-            _sendAudioQueue.TryRemove(channel.Id, out _);
+            if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))
+                removedQueue?.Clear();
+        }
+        catch (TaskCanceledException tce)
+        {
+            Log.Write(WRN, tce, "Playback reached timeout of {timeoutms} ms", _sendAudioTimeoutMs);
         }
         catch (Exception e)
         {
