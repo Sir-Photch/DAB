@@ -1,13 +1,13 @@
-﻿using Microsoft.VisualStudio.Threading;
-using Discord;
-using TagLib;
-using File = TagLib.File;
-using DAB.Data;
-using DAB.Util.Audio;
-using DAB.Discord.Enums;
-using DAB.Discord.Commands;
+﻿using DAB.Data;
 using DAB.Data.Interfaces;
 using DAB.Discord.Abstracts;
+using DAB.Discord.Commands;
+using DAB.Discord.Enums;
+using DAB.Util.Audio;
+using Discord;
+using Microsoft.VisualStudio.Threading;
+using TagLib;
+using File = TagLib.File;
 
 namespace DAB.Discord.HandlerModules;
 

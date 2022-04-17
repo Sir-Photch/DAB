@@ -1,8 +1,8 @@
-﻿using System.Reflection;
+﻿using DAB.Discord.Abstracts;
+using DAB.Discord.Enums;
 using Discord;
 using Discord.WebSocket;
-using DAB.Discord.Enums;
-using DAB.Discord.Abstracts;
+using System.Reflection;
 
 namespace DAB.Discord.Commands;
 
@@ -51,7 +51,7 @@ internal static class SlashCommandFactory
                                                              .WithType(ApplicationCommandOptionType.Attachment);
                 builder = builder.AddOption(options);
                 break;
-            case SlashCommandType.CLEAR_CHIME:                
+            case SlashCommandType.CLEAR_CHIME:
                 break;
 #if DEBUG
             default:
@@ -94,7 +94,7 @@ internal static class SlashCommandFactory
 #if DEBUG
         if (builder is null) throw new ArgumentNullException(nameof(builder));
 #endif
-        
+
         var details = commandType.GetType()
                                  .GetField(commandType.ToString())
                                  ?.GetCustomAttribute<SlashCommandDetailsAttribute>();

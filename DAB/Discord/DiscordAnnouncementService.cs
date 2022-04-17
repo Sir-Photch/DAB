@@ -1,13 +1,13 @@
-﻿using System.Reflection;
-using System.Collections.Concurrent;
-using Microsoft.VisualStudio.Threading;
-using Discord;
-using Discord.WebSocket;
+﻿using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
 using DAB.Discord.Audio;
-using DAB.Discord.Enums;
-using DAB.Data.Interfaces;
 using DAB.Discord.Commands;
+using DAB.Discord.Enums;
+using Discord;
+using Discord.WebSocket;
+using Microsoft.VisualStudio.Threading;
+using System.Collections.Concurrent;
+using System.Reflection;
 
 namespace DAB.Discord;
 

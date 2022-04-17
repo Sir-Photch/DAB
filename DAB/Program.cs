@@ -1,14 +1,14 @@
-﻿using System.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
-using Discord;
-using Discord.WebSocket;
-using DAB.Discord;
+﻿using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
+using DAB.Discord;
+using DAB.Discord.Abstracts;
 using DAB.Discord.Audio;
 using DAB.Discord.Commands;
-using DAB.Discord.Abstracts;
 using DAB.Discord.HandlerModules;
-using DAB.Data.Interfaces;
+using Discord;
+using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics;
 
 const string DAB_LOGO = "######     #    ######\n#     #   # #   #     #\n#     #  #   #  #     #\n#     # #     # ######\n#     # ####### #     #\n#     # #     # #     #\n######  #     # ######\n";
 

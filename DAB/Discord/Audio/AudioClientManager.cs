@@ -34,9 +34,9 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
             {
                 BlockingAudioClient knownClient = _activeAudioClients[target.Id];
                 if (knownClient.ConnectionState is ConnectionState.Connected or ConnectionState.Connecting)
-                    return knownClient;                
+                    return knownClient;
             }
-            
+
             return _activeAudioClients[target.Id] = new(await target.ConnectAsync());
         }
         finally

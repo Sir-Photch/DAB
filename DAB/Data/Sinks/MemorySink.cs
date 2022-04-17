@@ -1,6 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using DAB.Data.Interfaces;
 using Microsoft.VisualStudio.Threading;
-using DAB.Data.Interfaces;
+using System.Collections.Concurrent;
 
 namespace DAB.Data.Sinks;
 
@@ -29,7 +29,7 @@ internal class MemorySink : IUserDataSink, IDisposable
         await data.CopyToAsync(ms);
 
         if (_userData.ContainsKey(userId))
-           _userData[userId].DisposeAsync().Forget();
+            _userData[userId].DisposeAsync().Forget();
 
         _userData[userId] = ms;
     }
@@ -73,5 +73,5 @@ internal class MemorySink : IUserDataSink, IDisposable
         _userData.Clear();
 
         _disposed = true;
-    }    
+    }
 }
