@@ -23,11 +23,11 @@ Download the latest `-stable` tarball of libsodium [here](https://download.libso
 
 Run
 ```bash
-tar -xvf <downloaded libsodium-tarball>
-cd <folder with extracted source>
-./configure
-make && make check
-sudo make install
+$ tar -xvf <downloaded libsodium-tarball>
+$ cd <folder with extracted source>
+$ ./configure
+$ make && make check
+$ sudo make install
 ```
 Consider adding `-j 4` to each `make` to speed up the process.
 
@@ -37,7 +37,7 @@ compiling it just as you did with libsodium.
 This will place a `libopus.so` in `/usr/local/lib/libopus.so`.
 It has to be linked to `opus.so`, like
 ```bash
-ln -s /usr/local/lib/libopus.so /path/to/DAB/opus.so
+$ ln -s /usr/local/lib/libopus.so /path/to/DAB/opus.so
 ```
 
 After that, you should be ready to run!
