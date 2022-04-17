@@ -1,5 +1,5 @@
 <p align="right">
-  <img src="dab-logo.png" alt="PowerliftingSharp" width=150/>
+  <img src="logo.png" alt="DAB-Logo" width=150/>
 </p>
 
 # DAB - *Discord Announcement Bot*
