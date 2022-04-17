@@ -42,3 +42,6 @@ Currently, the config consists of:
 - playback stutters on weaker machines
 - playback quality
 - very short chimes won't play
+
+## contributing
+Kudos to you for scrolling this far! If you want to contribute, just open up that PR of yours! :)
