@@ -1,7 +1,4 @@
-(this logo is wip)
-<p align="right">
-  <img src="dab-logo.png" alt="DAB-Logo" />
-</p>
+<img width="64" height="64" align="left" style="float: left;" alt="DAB-icon" src="logo.png"/>
 
 # DAB - *Discord Announcement Bot*
 Bot that lets users `/set-chime` with a given audio-file, that plays each time they connect to a channel on your server.
