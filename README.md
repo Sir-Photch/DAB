@@ -1,3 +1,4 @@
+(this logo is wip)
 <p align="right">
   <img src="dab-logo-text.png" alt="DAB-Logo" />
 </p>
