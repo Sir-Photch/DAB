@@ -1,4 +1,5 @@
-﻿using DAB.Data;
+﻿using DAB.Configuration;
+using DAB.Data;
 using DAB.Data.Interfaces;
 using DAB.Discord.Abstracts;
 using DAB.Discord.Commands;
@@ -14,6 +15,8 @@ namespace DAB.Discord.HandlerModules;
 internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 {
     private readonly IUserDataSink _sink;
+    private readonly int _announcementDurationMaxMs;
+    private readonly int _announcementFileSizeMaxB;
 
     internal AnnouncementHandlerModule(IServiceProvider serviceProvider)
     {
@@ -23,6 +26,11 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 
         _sink = serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink
                 ?? throw new NotSupportedException($"{nameof(IUserDataSink)} missing from {nameof(serviceProvider)}");
+
+        ConfigRoot? cfg = serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot;
+
+        _announcementDurationMaxMs = cfg?.Bot.ChimeDurationMaxMs ?? 10_000;
+        _announcementFileSizeMaxB = (cfg?.Bot.ChimeFilesizeMaxKb ?? 5_000) * 1_000;
     }
 
     internal override async Task HandleAsync()
@@ -99,6 +107,13 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         if (interaction is null) throw new ArgumentNullException(nameof(interaction));
 #endif
 
+        if (_announcementFileSizeMaxB > 0 &&
+            attachment.Size > _announcementFileSizeMaxB)
+        {
+            await interaction.FollowupAsync($"Sorry, your announcement can't be bigger than {_announcementFileSizeMaxB / 1000.0:F2} KB");
+            return;
+        }
+
         using HttpClient client = new();
         using Stream data = await client.GetStreamAsync(attachment.Url);
 
@@ -106,34 +121,42 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         await data.CopyToAsync(ms);
         StreamFileAbstraction fileAbstraction = new(ms, attachment.Filename);
 
+        File taggedFile;
+
         try
         {
-            File taggedFile = File.Create(fileAbstraction);
-
-            if (taggedFile.PossiblyCorrupt)
-            {
-                await interaction.FollowupAsync("This file is corrupt!", ephemeral: true);
-                return;
-            }
-
-            var audioCodecs = taggedFile.Properties.Codecs.Where(c => c is IAudioCodec or ILosslessAudioCodec);
-            if (!audioCodecs.Any())
-            {
-                await interaction.FollowupAsync("Ha! This is not an audio-file!", ephemeral: true);
-                return;
-            }
+            taggedFile = File.Create(fileAbstraction);            
         }
         catch (UnsupportedFormatException ufe)
         {
             Log.Write(DBG, ufe, "User provided unsupported format!");
             await interaction.FollowupAsync("This file is not supported :(", ephemeral: true);
-
             return;
         }
         catch (Exception e)
         {
             Log.Write(ERR, e, "Unexpected exception in {method}!", nameof(LoadAudioFileAsync));
             await interaction.FollowupAsync("Bollocks! An unexpected error occurred. Contact your admin!", ephemeral: true);
+            return;
+        }
+
+        if (taggedFile.PossiblyCorrupt)
+        {
+            await interaction.FollowupAsync("This file is corrupt!", ephemeral: true);
+            return;
+        }
+
+        var audioCodecs = taggedFile.Properties.Codecs.Where(c => c is IAudioCodec or ILosslessAudioCodec);
+        if (!audioCodecs.Any())
+        {
+            await interaction.FollowupAsync("Ha! This is not an audio-file!", ephemeral: true);
+            return;
+        }
+
+        if (_announcementDurationMaxMs > 0 &&
+            audioCodecs.First().Duration.TotalMilliseconds >= _announcementDurationMaxMs)
+        {
+            await interaction.FollowupAsync($"Sorry, your announcement can't be any longer than {_announcementDurationMaxMs / 1000.0:F1} seconds");
             return;
         }
 

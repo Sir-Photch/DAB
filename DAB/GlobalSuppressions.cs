@@ -25,4 +25,6 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Performance", "HAA0101:Array allocation for params parameter", Justification = "<Ausstehend>", Scope = "member", Target = "~M:DAB.Discord.DiscordAnnouncementService.OnSlashCommandExecutedAsync(Discord.WebSocket.SocketSlashCommand)~System.Threading.Tasks.Task")]
 [assembly: SuppressMessage("Performance", "HAA0101:Array allocation for params parameter", Justification = "<Ausstehend>", Scope = "member", Target = "~M:DAB.Util.Audio.PCMAudioEncoder.EncodeAsync(System.IO.Stream)~System.Threading.Tasks.Task{System.IO.Stream}")]
 [assembly: SuppressMessage("Performance", "HAA0601:Value type to reference type conversion causing boxing allocation", Justification = "<Ausstehend>", Scope = "member", Target = "~M:DAB.Util.Audio.PCMAudioEncoder.EncodeAsync(System.IO.Stream)~System.Threading.Tasks.Task{System.IO.Stream}")]
+[assembly: SuppressMessage("Performance", "HAA0101:Array allocation for params parameter", Justification = "<Ausstehend>")]
+[assembly: SuppressMessage("Performance", "HAA0601:Value type to reference type conversion causing boxing allocation", Justification = "<Ausstehend>", Scope = "member", Target = "~M:DAB.Discord.HandlerModules.AnnouncementHandlerModule.LoadAudioFileAsync(Discord.IAttachment,Discord.ISlashCommandInteraction)~System.Threading.Tasks.Task")]
 #endif

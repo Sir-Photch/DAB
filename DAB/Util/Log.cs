@@ -29,7 +29,7 @@ internal static class Log
                                            .WriteTo.Async(a => a.Console())
 #endif
                                            .WriteTo.Async(
-                                                    a => a.File(new JsonFormatter(renderMessage: true, formatProvider: CultureInfo.InvariantCulture),
+                                                    a => a.File(new JsonFormatter(formatProvider: CultureInfo.InvariantCulture),
                                                                 _logDir.FullName + "/.log",
                                                                 LogEventLevel.Warning,
                                                                 fileSizeLimitBytes: null,
