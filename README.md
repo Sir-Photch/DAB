@@ -1,3 +1,7 @@
+<p align="right">
+  <img src="dab-logo.png" alt="PowerliftingSharp" width=150/>
+</p>
+
 # DAB - *Discord Announcement Bot*
 Bot that lets users `/set-chime` with a given audio-file, that plays each time they connect to a channel on your server.
 
