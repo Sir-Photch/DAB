@@ -36,7 +36,7 @@ Currently, the config consists of:
 - `"ApiKey":` string containing your unique discord-api-token
 - `"ChimeDurationMaxMs":` signed integer containing the maximum duration of a chime, in milliseconds. For no limit, set -1.
 - `"ChimeFilesizeMaxKb":` signed integer containing the maximum filesize a user can upload, in kilobytes. For no limit, set -1.
-- `"ChimePlaybackTimeoutMs":` signed integer containing the maximum duration after playing a chime will time out. This is recommended to be set. For no limit, set -1
+- `"ChimePlaybackTimeoutMs":` signed integer containing the maximum duration after playing a chime will time out, in milliseconds. This is recommended to be set. For no limit, set -1
 
 ## Known issues
 - playback stutters on weaker machines
