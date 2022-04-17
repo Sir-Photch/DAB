@@ -32,8 +32,8 @@ sudo make install
 Consider adding `-j 4` to each `make` to speed up the process.
 
 ### libopus
-In this case, download the latest `opus-x.x.tar.gz` from [here](https://ftp.osuosl.org/pub/xiph/releases/opus/).
-Compiling it just as you did with libsodium.
+In this case, download the latest `opus-x.x.tar.gz` from [here](https://ftp.osuosl.org/pub/xiph/releases/opus/),
+compiling it just as you did with libsodium.
 This will place a `libopus.so` in `/usr/local/lib/libopus.so`.
 It has to be linked to `opus.so`, like
 ```bash
