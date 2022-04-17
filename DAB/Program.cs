@@ -80,14 +80,13 @@ DiscordAnnouncementService discordCommandService = new(serviceProvider);
 
 Log.Write(INF, "Bot startup: {startupTime}", DateTime.Now);
 
-// I guess you go: start -> then login; and the other way around for: logout -> stop
-await client.StartAsync();
 await client.LoginAsync(TokenType.Bot, configRoot.Discord.ApiKey);
+await client.StartAsync();
 
 while (Console.ReadKey(intercept: true).KeyChar != 'q') ;
 
-await client.LogoutAsync();
 await client.StopAsync();
+await client.LogoutAsync();
 
 Cleanup(stopwatch);
 return 0;

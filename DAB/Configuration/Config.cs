@@ -30,7 +30,7 @@ internal class Config
 
     internal static ConfigRoot GetRoot()
     {
-        ConfigRoot? retval = null;
+        ConfigRoot? retval;
         try
         {
             retval = JsonConvert.DeserializeObject<ConfigRoot>(File.ReadAllText(Path), _settings);

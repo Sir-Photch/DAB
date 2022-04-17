@@ -43,7 +43,7 @@ internal static class Log
     internal static void Flush() => Serilog.Log.CloseAndFlush();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void Write(Level level, Exception e, string template, params object[] args)
+    internal static void Write(Level level, Exception? e, string template, params object[] args)
         => Serilog.Log.Write(ToSerilogLevel(level), e, template, args);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,6 +57,7 @@ internal static class Log
         INF => LogEventLevel.Information,
         WRN => LogEventLevel.Warning,
         ERR => LogEventLevel.Error,
-        FTL => LogEventLevel.Fatal
+        FTL => LogEventLevel.Fatal,
+        _ => throw new NotImplementedException()
     };
 }

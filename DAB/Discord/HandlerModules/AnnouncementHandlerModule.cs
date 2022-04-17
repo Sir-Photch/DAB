@@ -65,12 +65,6 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 
 #pragma warning disable CS8602, CS8604 // method will return if context is null
 
-        if (_sink.DataSizeCapBytes > 0 && attachment.Size > _sink.DataSizeCapBytes)
-        {
-            await context.FollowupAsync($"Whoa, this file is to big. It can be at most {_sink.DataSizeCapBytes} bytes", ephemeral: true);
-            return;
-        }
-
         if (attachment is null)
         {
             Log.Write(ERR, "Unexpected error in {method}: {reference} was null!", nameof(SetChimeAsync), nameof(attachment));
@@ -156,7 +150,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         if (_announcementDurationMaxMs > 0 &&
             audioCodecs.First().Duration.TotalMilliseconds >= _announcementDurationMaxMs)
         {
-            await interaction.FollowupAsync($"Sorry, your announcement can't be any longer than {_announcementDurationMaxMs / 1000.0:F1} seconds");
+            await interaction.FollowupAsync($"Sorry, your announcement can't be any longer than {_announcementDurationMaxMs / 1000.0:F1} seconds", ephemeral: true);
             return;
         }
 

@@ -13,7 +13,8 @@ internal static class Extensions
             LogSeverity.Warning => WRN,
             LogSeverity.Info => INF,
             LogSeverity.Verbose => VRB,
-            LogSeverity.Debug => DBG
+            LogSeverity.Debug => DBG,
+            _ => throw new NotImplementedException()
         };
         source = msg.Source;
         message = msg.Message;

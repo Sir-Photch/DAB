@@ -179,6 +179,10 @@ internal class DiscordAnnouncementService
             if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))
                 removedQueue?.Clear();
         }
+        catch (TaskCanceledException tce)
+        {
+            Log.Write(WRN, tce, "Playback reached timeout of {timeoutms} ms", _sendAudioTimeoutMs);
+        }
         catch (Exception e)
         {
             Log.Write(ERR, e, "Unexpected error in {method}", nameof(StartAudioAsync));
