@@ -16,7 +16,7 @@ I recommend using some kind of package-manager, e.g. `scoop`.
 ## Linux-Arm - Raspberry Pi
 You can also run the bot on a raspberry, I do so myself using a RPI 4B+.
 It seems like D.NET-maintainers automatically asssume to know what we're doing in this case,
-since no dependencies are provided here. You have to build them from scratch:
+since no dependencies are provided here. You have to get them with your package-manager or build them from scratch:
 
 ### libsodium
 Download the latest `-stable` tarball of libsodium [here](https://download.libsodium.org/libsodium/releases/).
