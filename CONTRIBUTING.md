@@ -13,7 +13,8 @@ On creating a new item, append it to the **TODO**-list.
 - ability for users to provide http-link for audio-file
 - ability to limit playback of chime to only once in given timespan in config
 - ability for users to provide text for text-to-speech
-- fix playback problems !!!
+- ability for users to provide link to video for bot to crop chime from
 
 ## DONE
+- ~fix playback problems !!!~ [PR](https://github.com/Sir-Photch/DAB/pull/6)
 - ~Initial version~ [PR](https://github.com/Sir-Photch/DAB/pull/5)
