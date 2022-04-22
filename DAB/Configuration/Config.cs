@@ -48,7 +48,6 @@ internal class Config
     private static readonly JsonSerializerSettings _settings = new()
     {
         Formatting = Formatting.Indented,
-        NullValueHandling = NullValueHandling.Include,
-        DefaultValueHandling = DefaultValueHandling.Populate
+        NullValueHandling = NullValueHandling.Include
     };
 }

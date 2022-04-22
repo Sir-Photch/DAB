@@ -24,6 +24,7 @@ internal class DiscordAnnouncementService
     private readonly AudioClientManager _audioClientManager;
 
     private readonly int _sendAudioTimeoutMs;
+    private readonly int _bufferMs;
 
     private readonly ConcurrentDictionary<ulong, ConcurrentQueue<Stream>> _sendAudioQueue = new();
 
@@ -44,7 +45,7 @@ internal class DiscordAnnouncementService
 #endif
         _audioClientManager = _serviceProvider.GetService(typeof(AudioClientManager)) as AudioClientManager;
         _socketClient = _serviceProvider.GetService(typeof(DiscordSocketClient)) as DiscordSocketClient;
-        _announcementSink = _serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink;        
+        _announcementSink = _serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink;
 #if DEBUG
 #pragma warning restore CS8601
 #endif
@@ -58,8 +59,10 @@ internal class DiscordAnnouncementService
             _announcementSink = new MemorySink();
         }
 
-        _sendAudioTimeoutMs = (_serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot)
-                            ?.Bot.ChimePlaybackTimeoutMs ?? 10_000;
+        ConfigRoot? root = _serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot;
+
+        _sendAudioTimeoutMs = root?.Bot.ChimePlaybackTimeoutMs ?? 10_000;
+        _bufferMs = root?.Discord.AudioBufferMs ?? 25;
 
         _socketClient.Ready += OnClientReadyAsync;
 
@@ -173,7 +176,10 @@ internal class DiscordAnnouncementService
             {
                 stream.Position = 0;
                 CancellationTokenSource cts = new(_sendAudioTimeoutMs); // HACK
-                await audioClient.SendPCMEncodedAudioAsync(stream, cts.Token);
+                await audioClient.SendPCMEncodedAudioAsync(
+                    stream: stream,
+                    bufferMillis: _bufferMs,
+                    token: cts.Token);
             }
 
             if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))

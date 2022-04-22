@@ -1,14 +1,12 @@
 ﻿using DAB.Configuration;
-using DAB.Data;
 using DAB.Data.Interfaces;
 using DAB.Discord.Abstracts;
 using DAB.Discord.Commands;
 using DAB.Discord.Enums;
-using DAB.Util.Audio;
 using Discord;
+using FFMpegCore;
+using FFMpegCore.Pipes;
 using Microsoft.VisualStudio.Threading;
-using TagLib;
-using File = TagLib.File;
 
 namespace DAB.Discord.HandlerModules;
 
@@ -17,6 +15,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
     private readonly IUserDataSink _sink;
     private readonly int _announcementDurationMaxMs;
     private readonly int _announcementFileSizeMaxB;
+    private readonly HttpClient _httpClient;
 
     internal AnnouncementHandlerModule(IServiceProvider serviceProvider)
     {
@@ -25,7 +24,10 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 #endif
 
         _sink = serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink
-                ?? throw new NotSupportedException($"{nameof(IUserDataSink)} missing from {nameof(serviceProvider)}");
+              ?? throw new NotSupportedException($"{nameof(IUserDataSink)} missing from {nameof(serviceProvider)}");
+
+        _httpClient = serviceProvider.GetService(typeof(HttpClient)) as HttpClient
+                    ?? throw new NotSupportedException($"{nameof(HttpClient)} missing from {nameof(serviceProvider)}");
 
         ConfigRoot? cfg = serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot;
 
@@ -108,54 +110,76 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
             return;
         }
 
-        using HttpClient client = new();
-        using Stream data = await client.GetStreamAsync(attachment.Url);
+        using Stream data = await _httpClient.GetStreamAsync(attachment.Url);
 
         using MemoryStream ms = new();
         await data.CopyToAsync(ms);
-        StreamFileAbstraction fileAbstraction = new(ms, attachment.Filename);
 
-        File taggedFile;
+        bool validData = await CheckMetadataAsync(ms, interaction);
+        if (!validData)
+            return;
 
         try
         {
-            taggedFile = File.Create(fileAbstraction);            
-        }
-        catch (UnsupportedFormatException ufe)
-        {
-            Log.Write(DBG, ufe, "User provided unsupported format!");
-            await interaction.FollowupAsync("This file is not supported :(", ephemeral: true);
-            return;
+            using Stream pcmStream = await EncodePCMAsync(ms);
+            await _sink.SaveAsync(interaction.User.Id, pcmStream);
         }
         catch (Exception e)
         {
-            Log.Write(ERR, e, "Unexpected exception in {method}!", nameof(LoadAudioFileAsync));
-            await interaction.FollowupAsync("Bollocks! An unexpected error occurred. Contact your admin!", ephemeral: true);
+            Log.Write(FTL, e, "FFMpeg error");
+            await interaction.FollowupAsync("Crikey! An unexpected error has occurred. Contact your admin!", ephemeral: true);
             return;
         }
 
-        if (taggedFile.PossiblyCorrupt)
+        await interaction.FollowupAsync("Your announcement has been saved!", ephemeral: true);
+    }
+
+    private async Task<Stream> EncodePCMAsync(Stream stream)
+    {
+#if DEBUG
+        if (stream is null) throw new ArgumentNullException(nameof(stream));
+#endif
+        if (stream.CanSeek)
+            stream.Seek(0, SeekOrigin.Begin);
+
+        MemoryStream retval = new();
+
+        await FFMpegArguments.FromPipeInput(new StreamPipeSource(stream))
+                             .OutputToPipe(new StreamPipeSink(retval), addArguments: options => options
+                                .WithCustomArgument("-f s16le -acodec pcm_s16le"))
+                             .ProcessAsynchronously(true);
+
+        return retval;
+    }
+
+    private async Task<bool> CheckMetadataAsync(Stream data, ISlashCommandInteraction interaction, CancellationToken token = default)
+    {
+#if DEBUG
+        if (data is null) throw new ArgumentNullException(nameof(data));
+        if (interaction is null) throw new ArgumentNullException(nameof(interaction));
+#endif
+
+        if (data.CanSeek)
+            data.Seek(0, SeekOrigin.Begin);
+
+        IMediaAnalysis metadata;
+        try
         {
-            await interaction.FollowupAsync("This file is corrupt!", ephemeral: true);
-            return;
+            metadata = await FFProbe.AnalyseAsync(data, cancellationToken: token);
         }
-
-        var audioCodecs = taggedFile.Properties.Codecs.Where(c => c is IAudioCodec or ILosslessAudioCodec);
-        if (!audioCodecs.Any())
+        catch (Exception e)
         {
-            await interaction.FollowupAsync("Ha! This is not an audio-file!", ephemeral: true);
-            return;
+            Log.Write(ERR, e, "Could not analyse data!");
+            await interaction.RespondAsync("Weird! That did not work...", ephemeral: true);
+            return false;
         }
 
-        if (_announcementDurationMaxMs > 0 &&
-            audioCodecs.First().Duration.TotalMilliseconds >= _announcementDurationMaxMs)
+        if (metadata.Duration.TotalMilliseconds >= _announcementDurationMaxMs)
         {
             await interaction.FollowupAsync($"Sorry, your announcement can't be any longer than {_announcementDurationMaxMs / 1000.0:F1} seconds", ephemeral: true);
-            return;
+            return false;
         }
 
-        using Stream pcmStream = await PCMAudioEncoder.EncodeAsync(ms);
-        await _sink.SaveAsync(interaction.User.Id, pcmStream);
-        await interaction.FollowupAsync("Your announcement has been saved!", ephemeral: true);
+        return true;
     }
 }

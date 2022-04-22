@@ -15,6 +15,9 @@ internal class DiscordParams
 {
     [JsonProperty(nameof(ApiKey))]
     internal string ApiKey { get; set; } = string.Empty;
+
+    [JsonProperty(nameof(AudioBufferMs))]
+    internal int AudioBufferMs { get; set; } = 25;
 }
 
 internal class BotParams
