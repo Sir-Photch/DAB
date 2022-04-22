@@ -20,7 +20,7 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
 
     #region methods
 
-    internal async Task<BlockingAudioClient> GetClientAsync(IVoiceChannel target, CancellationToken token = default)
+    internal async Task<BlockingAudioClient> GetClientAsync(IVoiceChannel target, bool selfDeaf = true, bool selfMute = false, bool external = false, CancellationToken token = default)
     {
 #if DEBUG
         if (target is null) throw new ArgumentNullException(nameof(target));
@@ -37,7 +37,7 @@ internal class AudioClientManager : IDisposable, IAsyncDisposable
                     return knownClient;
             }
 
-            return _activeAudioClients[target.Id] = new(await target.ConnectAsync());
+            return _activeAudioClients[target.Id] = new(await target.ConnectAsync(selfDeaf: selfDeaf, selfMute: selfMute, external: external));
         }
         catch (Exception e)
         {

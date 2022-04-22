@@ -1,16 +1,16 @@
-﻿using DAB.Data.Interfaces;
+﻿using DAB.Configuration;
+using DAB.Configuration.Exceptions;
+using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
 using DAB.Discord;
 using DAB.Discord.Abstracts;
 using DAB.Discord.Audio;
 using DAB.Discord.Commands;
 using DAB.Discord.HandlerModules;
-using DAB.Configuration;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
-using DAB.Configuration.Exceptions;
 
 const string DAB_LOGO = "######     #    ######\n#     #   # #   #     #\n#     #  #   #  #     #\n#     # #     # ######\n#     # ####### #     #\n#     # #     # #     #\n######  #     # ######\n";
 
@@ -64,7 +64,7 @@ DiscordSocketClient client = new(new()
 client.Log += msg =>
 {
     (Log.Level level, string source, string message, Exception? e) = msg;
-    Log.Write(level, e, "[{source}] | {message}", source.PadRight(8), message);
+    Log.Write(level, e, "[{source}] | {message}", source.PadLeft(9).PadRight(11), message);
     return Task.CompletedTask;
 };
 
@@ -74,6 +74,7 @@ IServiceProvider serviceProvider = new ServiceCollection()
                                       .AddSingleton<AbstractHandlerModule<SlashCommand>>(provider => new AnnouncementHandlerModule(provider))
                                       .AddSingleton<IUserDataSink>(new FileSystemSink(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userdata")))
                                       .AddSingleton<ConfigRoot>(configRoot)
+                                      .AddSingleton(new HttpClient())
                                       .BuildServiceProvider();
 
 DiscordAnnouncementService discordCommandService = new(serviceProvider);
