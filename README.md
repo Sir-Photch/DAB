@@ -48,8 +48,7 @@ In general, the default settings will work out most of the time.
 
 ## Known issues
 - playback stutters on weaker machines
-- playback quality
-- very short chimes won't play
+- chimes may be distorted upon encoding
 
 ## Contributing
 Kudos to you for scrolling this far! If you want to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
