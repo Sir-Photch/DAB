@@ -134,7 +134,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         await interaction.FollowupAsync("Your announcement has been saved!", ephemeral: true);
     }
 
-    private async Task<Stream> EncodePCMAsync(Stream stream)
+    private static async Task<Stream> EncodePCMAsync(Stream stream)
     {
 #if DEBUG
         if (stream is null) throw new ArgumentNullException(nameof(stream));

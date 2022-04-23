@@ -160,7 +160,16 @@ internal class DiscordAnnouncementService
 
         await Task.Delay(500); // HACK
 
-        BlockingAudioClient audioClient = await _audioClientManager.GetClientAsync(channel);
+        BlockingAudioClient audioClient;
+        try
+        {
+            audioClient = await _audioClientManager.GetClientAsync(channel, selfDeaf: true);
+        }
+        catch (Exception ex)
+        {
+            Log.Write(FTL, ex, "Could not get audio-client!");
+            return;
+        }
 
         // bail if client is already playing on channel
         if (!audioClient.Acquire())
@@ -185,9 +194,9 @@ internal class DiscordAnnouncementService
             if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))
                 removedQueue?.Clear();
         }
-        catch (TaskCanceledException tce)
+        catch (OperationCanceledException oce)
         {
-            Log.Write(WRN, tce, "Playback reached timeout of {timeoutms} ms", _sendAudioTimeoutMs);
+            Log.Write(WRN, oce, "Playback reached timeout of {timeoutms} ms", _sendAudioTimeoutMs);
         }
         catch (Exception e)
         {
