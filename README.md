@@ -28,7 +28,8 @@ Currently, the config consists of:
 ```json
 {
   "DiscordParams": {
-    "ApiKey": "foo bar baz"
+    "ApiKey": "foo bar baz",
+    "AudioBufferMs": 25
   },
   "BotParams": {
     "ChimeDurationMaxMs": 10000,
@@ -38,6 +39,7 @@ Currently, the config consists of:
 }
 ```
 - `"ApiKey":` string containing your unique discord-api-token
+- `"AudioBufferMs":` unsigned integer containing the buffer-duration of discord-audio-stream. Must be greater than 1. For bigger values, short chimes may not be played.
 - `"ChimeDurationMaxMs":` signed integer containing the maximum duration of a chime, in milliseconds. For no limit, set -1.
 - `"ChimeFilesizeMaxKb":` signed integer containing the maximum filesize a user can upload, in kilobytes. For no limit, set -1.
 - `"ChimePlaybackTimeoutMs":` signed integer containing the maximum duration after playing a chime will time out, in milliseconds. This is recommended to be set. For no limit, set -1
@@ -46,8 +48,7 @@ In general, the default settings will work out most of the time.
 
 ## Known issues
 - playback stutters on weaker machines
-- playback quality
-- very short chimes won't play
+- chimes may be distorted upon encoding
 
 ## Contributing
 Kudos to you for scrolling this far! If you want to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
