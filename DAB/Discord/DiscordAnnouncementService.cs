@@ -184,19 +184,22 @@ internal class DiscordAnnouncementService
             while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
             {
                 stream.Position = 0;
-                CancellationTokenSource cts = new(_sendAudioTimeoutMs); // HACK
-                await audioClient.SendPCMEncodedAudioAsync(
-                    stream: stream,
-                    bufferMillis: _bufferMs,
-                    token: cts.Token);
+                CancellationTokenSource cts = new(_sendAudioTimeoutMs);
+                try
+                {
+                    await audioClient.SendPCMEncodedAudioAsync(
+                                        stream: stream,
+                                        bufferMillis: _bufferMs,
+                                        token: cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Log.Write(DBG, "Playing audio ran into timeout of {field}: {ms}", nameof(_sendAudioTimeoutMs), _sendAudioTimeoutMs);
+                }
             }
 
             if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))
                 removedQueue?.Clear();
-        }
-        catch (OperationCanceledException oce)
-        {
-            Log.Write(WRN, oce, "Playback reached timeout of {timeoutms} ms", _sendAudioTimeoutMs);
         }
         catch (Exception e)
         {
