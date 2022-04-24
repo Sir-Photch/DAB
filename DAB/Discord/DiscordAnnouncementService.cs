@@ -172,7 +172,7 @@ internal class DiscordAnnouncementService
         }
 
         // bail if client is already playing on channel
-        if (!audioClient.Acquire())
+        if (!await audioClient.AcquireAsync())
             return;
 
         try
@@ -187,10 +187,9 @@ internal class DiscordAnnouncementService
                 CancellationTokenSource cts = new(_sendAudioTimeoutMs);
                 try
                 {
-                    await audioClient.SendPCMEncodedAudioAsync(
-                                        stream: stream,
-                                        bufferMillis: _bufferMs,
-                                        token: cts.Token);
+                    await audioClient.SendPCMEncodedAudioAsync(stream: stream,
+                                                               bufferMillis: _bufferMs,
+                                                               token: cts.Token);
                 }
                 catch (OperationCanceledException)
                 {

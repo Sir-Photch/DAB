@@ -1,11 +1,11 @@
 ﻿using DAB.Configuration;
 using DAB.Data.Interfaces;
 using DAB.Discord.Abstracts;
+using DAB.Discord.Audio;
 using DAB.Discord.Commands;
 using DAB.Discord.Enums;
 using Discord;
 using FFMpegCore;
-using FFMpegCore.Pipes;
 using Microsoft.VisualStudio.Threading;
 
 namespace DAB.Discord.HandlerModules;
@@ -121,35 +121,17 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 
         try
         {
-            using Stream pcmStream = await EncodePCMAsync(ms);
+            using Stream pcmStream = await AudioEncoder.EncodePCMAsync(ms);
             await _sink.SaveAsync(interaction.User.Id, pcmStream);
         }
         catch (Exception e)
         {
-            Log.Write(FTL, e, "FFMpeg error");
+            Log.Write(FTL, e, "AudioEncoding error");
             await interaction.FollowupAsync("Crikey! An unexpected error has occurred. Contact your admin!", ephemeral: true);
             return;
         }
 
         await interaction.FollowupAsync("Your announcement has been saved!", ephemeral: true);
-    }
-
-    private static async Task<Stream> EncodePCMAsync(Stream stream)
-    {
-#if DEBUG
-        if (stream is null) throw new ArgumentNullException(nameof(stream));
-#endif
-        if (stream.CanSeek)
-            stream.Seek(0, SeekOrigin.Begin);
-
-        MemoryStream retval = new();
-
-        await FFMpegArguments.FromPipeInput(new StreamPipeSource(stream))
-                             .OutputToPipe(new StreamPipeSink(retval), addArguments: options => options
-                                .WithCustomArgument("-f s16le -acodec pcm_s16le"))
-                             .ProcessAsynchronously(true);
-
-        return retval;
     }
 
     private async Task<bool> CheckMetadataAsync(Stream data, ISlashCommandInteraction interaction, CancellationToken token = default)
