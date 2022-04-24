@@ -64,6 +64,9 @@ DiscordSocketClient client = new(new()
 client.Log += msg =>
 {
     (Log.Level level, string source, string message, Exception? e) = msg;
+    if (message.Contains("(Hello)"))
+        return Task.CompletedTask;
+
     Log.Write(level, e, "[{source}] | {message}", source.PadLeft(9).PadRight(11), message);
     return Task.CompletedTask;
 };

@@ -20,9 +20,9 @@ internal class BlockingAudioClient : IAudioClient
         _underlyingClient = toBeWrapped;
     }
 
-    public bool Acquire()
+    public async ValueTask<bool> AcquireAsync()
     {
-        return _clientSemaphore.Wait(0);
+        return await _clientSemaphore.WaitAsync(0);
     }
 
     public void Release()
