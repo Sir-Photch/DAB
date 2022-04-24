@@ -88,8 +88,8 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         }
         catch (Exception e)
         {
-            Log.Write(ERR, e, "Could not analyse data!");
-            await interaction.RespondAsync("Weird! That did not work...", ephemeral: true);
+            Log.Write(WRN, e, "ffmpeg-error: probably not an audio-file");
+            await interaction.FollowupAsync("Hm, is this an audio-file?", ephemeral: true);
             return false;
         }
 
