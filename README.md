@@ -1,14 +1,15 @@
 <img width="64" height="64" align="left" style="float: left;" alt="DAB-icon" src="logo.png"/>
 
 # DAB - *Discord Announcement Bot*
-Bot that lets users `/set-chime` with a given audio-file, that plays each time they connect to a channel on your server.
+Bot that lets users `/chime` with a given audio-file or url, that plays each time they connect to a channel on your server.
 
 
 ## Features
 ### Slash-commands
 ```
-/set-chime <audio-file> # sets chime of user to given attachment
-/clear-chime            # clears chime of user, if present
+/chime set url    # sets chime of user to given url (that links to a audio-file)
+/chime set file   # sets chime of user to given attachment
+/chime clear      # clears chime of user, if present
 ```
 ### Behaviour
 If some user connects to a channel, the bot will join that channel and play the chime of the user, if configured.
