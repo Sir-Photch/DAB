@@ -5,6 +5,7 @@ using DAB.Discord.Audio;
 using DAB.Discord.Commands;
 using DAB.Discord.Enums;
 using Discord;
+using Discord.Audio;
 using Discord.WebSocket;
 using Microsoft.VisualStudio.Threading;
 using System.Collections.Concurrent;
@@ -153,21 +154,23 @@ internal class DiscordAnnouncementService
                 audioQueue is null)
                 return;
 
+            await using Stream pcmStream = audioClient.CreatePCMStream(AudioApplication.Music, bufferMillis: _bufferMs);
+
             while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
             {
                 stream.Position = 0;
                 CancellationTokenSource cts = new(_sendAudioTimeoutMs);
                 try
                 {
-                    await audioClient.SendPCMEncodedAudioAsync(stream: stream,
-                                                               bufferMillis: _bufferMs,
-                                                               token: cts.Token);
+                    await stream.CopyToAsync(pcmStream, cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
                     Log.Write(DBG, "Playing audio ran into timeout of {field}: {ms}", nameof(_sendAudioTimeoutMs), _sendAudioTimeoutMs);
                 }
             }
+
+            await pcmStream.FlushAsync(new CancellationTokenSource(5000).Token);
 
             if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))
                 removedQueue?.Clear();
