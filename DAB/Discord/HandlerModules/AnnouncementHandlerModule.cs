@@ -12,15 +12,25 @@ namespace DAB.Discord.HandlerModules;
 
 internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 {
-    private static IUserDataSink _Sink => GlobalServiceProvider.GetService<IUserDataSink>();
-    private static int _AnnouncementDurationMaxMs => GlobalServiceProvider.GetService<ConfigRoot>().Bot.ChimeDurationMaxMs;
+    private static IUserDataSink GetSink() => GlobalServiceProvider.GetService<IUserDataSink>();
+    private static int GetAnnouncementDurationMaxMs() => GlobalServiceProvider.GetService<ConfigRoot>().Bot.ChimeDurationMaxMs;
 
     internal override async Task<bool> HandleAsync()
     {
         if (Context?.Command is null || Context.CommandType is not SlashCommandType.chime)
             return false;
 
-        ChimeCommand cmd = new(Context);
+        ChimeCommand cmd;
+        try
+        {
+            cmd = new(Context);
+        }
+        catch (ArgumentException ae)
+        {
+            Log.Write(ERR, ae, "Could not parse commandContext for ChimeCommand");
+            await Context.FollowupAsync("Whoops! An unexpected error has occurred. Contact your admin!", ephemeral: true);
+            return false;
+        }
 
         bool continueHandling = await cmd.ValidateRequestedModeAsync() && cmd.RequestedMode is not ChimeCommand.Mode.Clear;
 
@@ -49,7 +59,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         try
         {
             using Stream pcmStream = await AudioEncoder.EncodePCMAsync(ms);
-            await _Sink.SaveAsync(interaction.User.Id, pcmStream);
+            await GetSink().SaveAsync(interaction.User.Id, pcmStream);
         }
         catch (Exception e)
         {
@@ -83,7 +93,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
             return false;
         }
 
-        int maxDurationMs = _AnnouncementDurationMaxMs;
+        int maxDurationMs = GetAnnouncementDurationMaxMs();
 
         if (metadata.Duration.TotalMilliseconds >= maxDurationMs)
         {

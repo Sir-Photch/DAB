@@ -95,7 +95,7 @@ internal class ChimeCommand
 
         if (!int.TryParse(contentLengthStr, out int contentLength))
         {
-            Log.Write(ERR, "Could not determine filesize of {uri} | {headers}", _chimeSourceUrl, response.Content.Headers);
+            Log.Write(ERR, "Could not determine filesize of {uri} | Headers: \n {@headers}", _chimeSourceUrl, response.Content.Headers);
             await Context.FollowupAsync("Hm, I could not determine the filesize!", ephemeral: true);
             return false;
         }

@@ -43,9 +43,9 @@ internal static class SlashCommandFactory
 
     internal static async Task HandleCommandAsync(SlashCommand command)
     {
-        var handler = GlobalServiceProvider.GetService<HandlerCollection<SlashCommand>>();
+        var handlers = GlobalServiceProvider.GetService<HandlerCollection<SlashCommand>>();
         await command.DeferAsync(ephemeral: true);
-        handler.HandleAsync(command).ContinueWith(t =>
+        handlers.HandleAsync(command).ContinueWith(t =>
         {
             if (t.IsFaulted) Log.Write(FTL, t.Exception, "Unexpected exception in commandHandling");
             if (!t.Result) Log.Write(ERR, "Could not handle SlashCommand {type}", command.CommandType);
