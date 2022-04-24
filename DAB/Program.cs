@@ -3,7 +3,6 @@ using DAB.Configuration.Exceptions;
 using DAB.Data.Interfaces;
 using DAB.Data.Sinks;
 using DAB.Discord;
-using DAB.Discord.Abstracts;
 using DAB.Discord.Audio;
 using DAB.Discord.Commands;
 using DAB.Discord.HandlerModules;
@@ -74,13 +73,15 @@ client.Log += msg =>
 IServiceProvider serviceProvider = new ServiceCollection()
                                       .AddSingleton(client)
                                       .AddSingleton(AudioClientManager.Instance)
-                                      .AddSingleton<AbstractHandlerModule<SlashCommand>>(provider => new AnnouncementHandlerModule(provider))
                                       .AddSingleton<IUserDataSink>(new FileSystemSink(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userdata")))
-                                      .AddSingleton<ConfigRoot>(configRoot)
+                                      .AddSingleton(new HandlerCollection<SlashCommand>(new AnnouncementHandlerModule()))
+                                      .AddSingleton(configRoot)
                                       .AddSingleton(new HttpClient())
                                       .BuildServiceProvider();
 
-DiscordAnnouncementService discordCommandService = new(serviceProvider);
+GlobalServiceProvider.Init(serviceProvider);
+
+DiscordAnnouncementService discordCommandService = new();
 
 Log.Write(INF, "Bot startup: {startupTime}", DateTime.Now);
 

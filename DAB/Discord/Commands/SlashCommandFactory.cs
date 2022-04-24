@@ -1,38 +1,21 @@
-﻿using DAB.Discord.Abstracts;
-using DAB.Discord.Enums;
+﻿using DAB.Discord.Enums;
+using DAB.Discord.HandlerModules;
 using Discord;
 using Discord.WebSocket;
-using System.Reflection;
+using Microsoft.VisualStudio.Threading;
 
 namespace DAB.Discord.Commands;
 
 internal static class SlashCommandFactory
 {
-    private static IServiceProvider? _serviceProvider;
-
-    internal static void Initlaize(IServiceProvider serviceProvider)
-    {
-#if DEBUG
-        if (serviceProvider is null) throw new ArgumentNullException(nameof(serviceProvider));
-#endif
-        _serviceProvider = serviceProvider;
-    }
-
-    internal static async Task ApplyAllCommandsAsync(this DiscordSocketClient client)
+    internal static async Task OverwriteCommandsAsync(this DiscordSocketClient client)
     {
 #if DEBUG
         if (client is null) throw new ArgumentNullException(nameof(client));
         if (client.ConnectionState is not ConnectionState.Connected) throw new InvalidOperationException($"{nameof(client)} is not connected");
 #endif
-        await Task.WhenAll(
-            Enum.GetValues<SlashCommandType>().Select(x => Task.Run(async () =>
-            {
-                SlashCommandProperties? command = CreateCommand(x);
-                if (command is null)
-                    return;
-                await client.CreateGlobalApplicationCommandAsync(command);
-            }))
-        );
+        var commands = Enum.GetValues<SlashCommandType>().Select(cmd => CreateCommand(cmd)).Where(x => x is not null);
+        await client.BulkOverwriteGlobalApplicationCommandsAsync(commands.ToArray());
     }
 
     internal static SlashCommandProperties? CreateCommand(SlashCommandType commandType)
@@ -40,69 +23,33 @@ internal static class SlashCommandFactory
         if (commandType is SlashCommandType.INVALID)
             return null;
 
-        var builder = new SlashCommandBuilder().ApplySlashCommandDetails(commandType);
-
-        switch (commandType)
+        return commandType switch
         {
-            case SlashCommandType.SET_CHIME:
-                var options = new SlashCommandOptionBuilder().WithName("audio-file")
-                                                             .WithDescription("audio-file to add")
-                                                             .WithRequired(true)
-                                                             .WithType(ApplicationCommandOptionType.Attachment);
-                builder = builder.AddOption(options);
-                break;
-            case SlashCommandType.CLEAR_CHIME:
-                break;
-#if DEBUG
-            default:
-                throw new NotImplementedException();
-#endif
-        }
-
-        return builder.Build();
+            SlashCommandType.chime => ChimeCommand.CreateCommand(),
+            _ => throw new NotImplementedException()
+        };
     }
 
     internal static SlashCommandType? FromString(string? str)
     {
-        if (str is null)
-            return null;
+        var matches = Enum.GetValues<SlashCommandType>().Where(t => t.ToString() == str);
 
-        var obj = typeof(SlashCommandType).GetFields()
-                                      .Where(x => x.GetCustomAttribute<SlashCommandDetailsAttribute>()?.CommandName == str)
-                                      .FirstOrDefault()?.GetValue(null);
+        // avoid .FirstOrDefault(), default of enum is not null
+        if (matches.Any())
+            return matches.First();
 
-        if (obj is null)
-            return null;
-
-        return (SlashCommandType)obj;
+        return null;
     }
 
     internal static async Task HandleCommandAsync(SlashCommand command)
     {
-        var handler = _serviceProvider?.GetService(typeof(AbstractHandlerModule<SlashCommand>)) as AbstractHandlerModule<SlashCommand>;
-
-#if DEBUG
-        if (handler is null) throw new NotSupportedException($"ServiceProvider did not contain instance of {nameof(AbstractHandlerModule<SlashCommand>)}");
-#endif
-
-        handler.Context = command;
-        await handler.HandleAsync();
-    }
-
-    private static SlashCommandBuilder ApplySlashCommandDetails(this SlashCommandBuilder builder, SlashCommandType commandType)
-    {
-#if DEBUG
-        if (builder is null) throw new ArgumentNullException(nameof(builder));
-#endif
-
-        var details = commandType.GetType()
-                                 .GetField(commandType.ToString())
-                                 ?.GetCustomAttribute<SlashCommandDetailsAttribute>();
-
-#if DEBUG
-        if (details is null) throw new NotImplementedException();
-#endif
-
-        return builder.WithName(details.CommandName).WithDescription(details.Description);
+        var handlers = GlobalServiceProvider.GetService<HandlerCollection<SlashCommand>>();
+        await command.DeferAsync(ephemeral: true);
+        handlers.HandleAsync(command).ContinueWith(t =>
+        {
+            if (t.IsFaulted) Log.Write(FTL, t.Exception, "Unexpected exception in commandHandling");
+            if (!t.Result) Log.Write(ERR, "Could not handle SlashCommand {type}", command.CommandType);
+        },
+        TaskScheduler.Default).Forget();
     }
 }

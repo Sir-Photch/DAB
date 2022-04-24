@@ -12,108 +12,45 @@ namespace DAB.Discord.HandlerModules;
 
 internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
 {
-    private readonly IUserDataSink _sink;
-    private readonly int _announcementDurationMaxMs;
-    private readonly int _announcementFileSizeMaxB;
-    private readonly HttpClient _httpClient;
+    private static IUserDataSink GetSink() => GlobalServiceProvider.GetService<IUserDataSink>();
+    private static int GetAnnouncementDurationMaxMs() => GlobalServiceProvider.GetService<ConfigRoot>().Bot.ChimeDurationMaxMs;
 
-    internal AnnouncementHandlerModule(IServiceProvider serviceProvider)
+    internal override async Task<bool> HandleAsync()
+    {
+        if (Context?.Command is null || Context.CommandType is not SlashCommandType.chime)
+            return false;
+
+        ChimeCommand cmd;
+        try
+        {
+            cmd = new(Context);
+        }
+        catch (ArgumentException ae)
+        {
+            Log.Write(ERR, ae, "Could not parse commandContext for ChimeCommand");
+            await Context.FollowupAsync("Whoops! An unexpected error has occurred. Contact your admin!", ephemeral: true);
+            return false;
+        }
+
+        bool continueHandling = await cmd.ValidateRequestedModeAsync() && cmd.RequestedMode is not ChimeCommand.Mode.Clear;
+
+        if (continueHandling)
+        {
+            using Stream fromWeb = await cmd.GetAudioFileStreamAsync();
+            await LoadAudioFileAsync(fromWeb, cmd.Context);
+        }
+
+        return true;
+    }
+
+    private static async Task LoadAudioFileAsync(Stream stream, ISlashCommandInteraction interaction)
     {
 #if DEBUG
-        if (serviceProvider is null) throw new ArgumentNullException(nameof(serviceProvider));
-#endif
-
-        _sink = serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink
-              ?? throw new NotSupportedException($"{nameof(IUserDataSink)} missing from {nameof(serviceProvider)}");
-
-        _httpClient = serviceProvider.GetService(typeof(HttpClient)) as HttpClient
-                    ?? throw new NotSupportedException($"{nameof(HttpClient)} missing from {nameof(serviceProvider)}");
-
-        ConfigRoot? cfg = serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot;
-
-        _announcementDurationMaxMs = cfg?.Bot.ChimeDurationMaxMs ?? 10_000;
-        _announcementFileSizeMaxB = (cfg?.Bot.ChimeFilesizeMaxKb ?? 5_000) * 1_000;
-    }
-
-    internal override async Task HandleAsync()
-    {
-        if (Context?.Command is null)
-            return;
-
-        switch (Context.CommandType)
-        {
-            case SlashCommandType.SET_CHIME:
-                await SetChimeAsync();
-                break;
-
-            case SlashCommandType.CLEAR_CHIME:
-                await ClearChimeAsync();
-                break;
-
-            case SlashCommandType.INVALID:
-            default:
-                break;
-        }
-    }
-
-    private async Task SetChimeAsync()
-    {
-        SlashCommand? context = Context;
-
-        var option = context?.Data.Options.FirstOrDefault();
-
-        if (option?.Value is not IAttachment attachment)
-            return;
-
-#pragma warning disable CS8602, CS8604 // method will return if context is null
-
-        if (attachment is null)
-        {
-            Log.Write(ERR, "Unexpected error in {method}: {reference} was null!", nameof(SetChimeAsync), nameof(attachment));
-            await context.FollowupAsync($"Bollocks! Unexpected error occurred. Contact your admin!", ephemeral: true);
-            return;
-        }
-
-        Task.Run(() => LoadAudioFileAsync(attachment, context)).Forget();
-
-#pragma warning restore CS8602, CS8604
-    }
-
-    private async Task ClearChimeAsync()
-    {
-        SlashCommand? context = Context;
-
-        if (context?.User is null)
-            return;
-
-        if (!await _sink.UserHasDataAsync(context.User.Id))
-        {
-            await context.FollowupAsync("You had no chime set", ephemeral: true);
-            return;
-        }
-
-        await _sink.ClearAsync(context.User.Id);
-        await context.FollowupAsync("Success! I won't cheer you on anymore :'(", ephemeral: true);
-    }
-
-    private async Task LoadAudioFileAsync(IAttachment attachment, ISlashCommandInteraction interaction)
-    {
-#if DEBUG
-        if (attachment is null) throw new ArgumentNullException(nameof(attachment));
+        if (stream is null) throw new ArgumentNullException(nameof(stream));
         if (interaction is null) throw new ArgumentNullException(nameof(interaction));
 #endif
-
-        if (_announcementFileSizeMaxB > 0 &&
-            attachment.Size > _announcementFileSizeMaxB)
-        {
-            await interaction.FollowupAsync($"Sorry, your announcement can't be bigger than {_announcementFileSizeMaxB / 1000.0:F2} KB");
-            return;
-        }
-
-        using Stream data = await _httpClient.GetStreamAsync(attachment.Url);
-
         using MemoryStream ms = new();
-        await data.CopyToAsync(ms);
+        await stream.CopyToAsync(ms);
 
         bool validData = await CheckMetadataAsync(ms, interaction);
         if (!validData)
@@ -122,7 +59,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         try
         {
             using Stream pcmStream = await AudioEncoder.EncodePCMAsync(ms);
-            await _sink.SaveAsync(interaction.User.Id, pcmStream);
+            await GetSink().SaveAsync(interaction.User.Id, pcmStream);
         }
         catch (Exception e)
         {
@@ -134,7 +71,7 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         await interaction.FollowupAsync("Your announcement has been saved!", ephemeral: true);
     }
 
-    private async Task<bool> CheckMetadataAsync(Stream data, ISlashCommandInteraction interaction, CancellationToken token = default)
+    private static async Task<bool> CheckMetadataAsync(Stream data, ISlashCommandInteraction interaction, CancellationToken token = default)
     {
 #if DEBUG
         if (data is null) throw new ArgumentNullException(nameof(data));
@@ -151,14 +88,16 @@ internal class AnnouncementHandlerModule : AbstractHandlerModule<SlashCommand>
         }
         catch (Exception e)
         {
-            Log.Write(ERR, e, "Could not analyse data!");
-            await interaction.RespondAsync("Weird! That did not work...", ephemeral: true);
+            Log.Write(WRN, e, "ffmpeg-error: probably not an audio-file");
+            await interaction.FollowupAsync("Hm, is this an audio-file?", ephemeral: true);
             return false;
         }
 
-        if (metadata.Duration.TotalMilliseconds >= _announcementDurationMaxMs)
+        int maxDurationMs = GetAnnouncementDurationMaxMs();
+
+        if (metadata.Duration.TotalMilliseconds >= maxDurationMs)
         {
-            await interaction.FollowupAsync($"Sorry, your announcement can't be any longer than {_announcementDurationMaxMs / 1000.0:F1} seconds", ephemeral: true);
+            await interaction.FollowupAsync($"Sorry, your announcement can't be any longer than {maxDurationMs / 1000.0:F1} seconds", ephemeral: true);
             return false;
         }
 

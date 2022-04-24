@@ -5,10 +5,10 @@ using DAB.Discord.Audio;
 using DAB.Discord.Commands;
 using DAB.Discord.Enums;
 using Discord;
+using Discord.Audio;
 using Discord.WebSocket;
 using Microsoft.VisualStudio.Threading;
 using System.Collections.Concurrent;
-using System.Reflection;
 
 namespace DAB.Discord;
 
@@ -16,10 +16,7 @@ internal class DiscordAnnouncementService
 {
     #region fields
 
-    private readonly IServiceProvider _serviceProvider;
-
     private readonly DiscordSocketClient _socketClient;
-
     private readonly IUserDataSink _announcementSink;
     private readonly AudioClientManager _audioClientManager;
 
@@ -32,26 +29,14 @@ internal class DiscordAnnouncementService
 
     #region ctor
 
-    internal DiscordAnnouncementService(IServiceProvider serviceProvider)
+    internal DiscordAnnouncementService()
     {
-#if DEBUG
-        if (serviceProvider is null) throw new ArgumentNullException(nameof(serviceProvider));
-#endif
-
-        _serviceProvider = serviceProvider;
+        _audioClientManager = GlobalServiceProvider.GetService<AudioClientManager>();
+        _socketClient = GlobalServiceProvider.GetService<DiscordSocketClient>();
+        _announcementSink = GlobalServiceProvider.GetService<IUserDataSink>();
 
 #if DEBUG
-#pragma warning disable CS8601 // method will throw in debug mode when fields are assigned to null
-#endif
-        _audioClientManager = _serviceProvider.GetService(typeof(AudioClientManager)) as AudioClientManager;
-        _socketClient = _serviceProvider.GetService(typeof(DiscordSocketClient)) as DiscordSocketClient;
-        _announcementSink = _serviceProvider.GetService(typeof(IUserDataSink)) as IUserDataSink;
-#if DEBUG
-#pragma warning restore CS8601
-#endif
-
-#if DEBUG
-        if (_audioClientManager is null || _socketClient is null) throw new NotSupportedException($"Missing services in {nameof(serviceProvider)}");
+        if (_audioClientManager is null || _socketClient is null) throw new NotSupportedException($"Missing services in {nameof(GlobalServiceProvider)}");
 #endif
         if (_announcementSink is null)
         {
@@ -59,7 +44,7 @@ internal class DiscordAnnouncementService
             _announcementSink = new MemorySink();
         }
 
-        ConfigRoot? root = _serviceProvider.GetService(typeof(ConfigRoot)) as ConfigRoot;
+        ConfigRoot? root = GlobalServiceProvider.GetService<ConfigRoot>();
 
         _sendAudioTimeoutMs = root?.Bot.ChimePlaybackTimeoutMs ?? 10_000;
         _bufferMs = root?.Discord.AudioBufferMs ?? 25;
@@ -68,8 +53,6 @@ internal class DiscordAnnouncementService
 
         _socketClient.UserVoiceStateUpdated += OnClientUserVoiceStateUpdatedAsync;
         _socketClient.SlashCommandExecuted += OnSlashCommandExecutedAsync;
-
-        SlashCommandFactory.Initlaize(_serviceProvider);
     }
 
     #endregion
@@ -78,23 +61,13 @@ internal class DiscordAnnouncementService
 
     private async Task OnSlashCommandExecutedAsync(SocketSlashCommand command)
     {
-        var possibleCommandNames = typeof(SlashCommandType).GetFields()
-                                                       .Select(f => f.GetCustomAttribute<SlashCommandDetailsAttribute>())
-                                                       .Select(attr => attr?.CommandName)
-                                                       .Where(name => name == command.Data.Name);
-
-        if (!possibleCommandNames.Any())
-            return;
-
-        SlashCommandType? cmdType = SlashCommandFactory.FromString(possibleCommandNames.First());
+        SlashCommandType? cmdType = SlashCommandFactory.FromString(command.Data.Name);
 
         if (cmdType is null)
             return;
 
         try
         {
-            await command.DeferAsync(ephemeral: true);
-            IUserMessage response = await command.FollowupAsync("Thinking...", ephemeral: true);
             await SlashCommandFactory.HandleCommandAsync(new SlashCommand
             {
                 Command = command,
@@ -112,8 +85,8 @@ internal class DiscordAnnouncementService
         try
         {
             // TODO refactor this, to only apply commands associated with announcement.
-            // for now, the only thing this bot is doing is announcing, so there is no need xP
-            await _socketClient.ApplyAllCommandsAsync();
+            // for now, the only thing this bot is doing is announcing, so there is no need (yet) xP
+            await _socketClient.OverwriteCommandsAsync();
         }
         catch (Exception e)
         {
@@ -181,21 +154,23 @@ internal class DiscordAnnouncementService
                 audioQueue is null)
                 return;
 
+            await using Stream pcmStream = audioClient.CreatePCMStream(AudioApplication.Music, bufferMillis: _bufferMs);
+
             while (audioQueue.TryDequeue(out Stream? stream) && stream is not null)
             {
                 stream.Position = 0;
                 CancellationTokenSource cts = new(_sendAudioTimeoutMs);
                 try
                 {
-                    await audioClient.SendPCMEncodedAudioAsync(stream: stream,
-                                                               bufferMillis: _bufferMs,
-                                                               token: cts.Token);
+                    await stream.CopyToAsync(pcmStream, cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
                     Log.Write(DBG, "Playing audio ran into timeout of {field}: {ms}", nameof(_sendAudioTimeoutMs), _sendAudioTimeoutMs);
                 }
             }
+
+            await pcmStream.FlushAsync(new CancellationTokenSource(5000).Token);
 
             if (_sendAudioQueue.TryRemove(channel.Id, out ConcurrentQueue<Stream>? removedQueue))
                 removedQueue?.Clear();
