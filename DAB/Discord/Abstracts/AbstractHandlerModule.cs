@@ -4,5 +4,5 @@ internal abstract class AbstractHandlerModule<T>
 {
     internal T? Context { get; set; }
 
-    internal abstract Task HandleAsync();
+    internal abstract Task<bool> HandleAsync();
 }
