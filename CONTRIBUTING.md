@@ -13,6 +13,7 @@ On creating a new item, append it to the **TODO**-list.
 - ability to limit playback of chime to only once in given timespan in config
 - ability for users to provide text for text-to-speech
 - ability for users to provide link to video for bot to crop chime from
+- add translation per guild
 
 ## DONE
 - ~ability for users to provide http-link for audio-file~ [PR](https://github.com/Sir-Photch/DAB/pull/8)
