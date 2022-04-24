@@ -16,5 +16,5 @@ On creating a new item, append it to the **TODO**-list.
 - ability for users to provide link to video for bot to crop chime from
 
 ## DONE
-- ~fix playback problems !!!~ [PR](https://github.com/Sir-Photch/DAB/pull/6)
+- ~fix playback problems !!!~ [PR](https://github.com/Sir-Photch/DAB/pull/6) [another PR](https://github.com/Sir-Photch/DAB/pull/7)
 - ~Initial version~ [PR](https://github.com/Sir-Photch/DAB/pull/5)
