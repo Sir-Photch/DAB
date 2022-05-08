@@ -104,6 +104,10 @@ internal class DiscordAnnouncementService
         if (curr.VoiceChannel is null)
             return;
 
+        // skip if channel has reached its user-limit
+        if (curr.VoiceChannel.UserLimit is int limit && curr.VoiceChannel.Users.Count == limit)
+            return;
+
         // switching channels within guild
         if (prev.VoiceChannel is not null &&
             prev.VoiceChannel.Guild.Id == curr.VoiceChannel.Guild.Id)
