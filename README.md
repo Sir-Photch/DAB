@@ -49,6 +49,7 @@ In general, the default settings will work out most of the time.
 
 ## Known issues
 - playback stutters on weaker machines
+- Chimes are queued when bot is in other channel than joinee, but not played until some other user joins into the same channel
 
 ## Contributing
 Kudos to you for scrolling this far! If you want to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
