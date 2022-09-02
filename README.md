@@ -1,3 +1,6 @@
+**NOTE:** I moved to Rust while developing this bot. See https://github.com/Sir-Photch/dab-rs
+
+
 <img width="64" height="64" align="left" style="float: left;" alt="DAB-icon" src="logo.png"/>
 
 # DAB - *Discord Announcement Bot*
